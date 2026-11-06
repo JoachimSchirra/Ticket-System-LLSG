@@ -10,7 +10,7 @@
 <main>
 <section class="intro"><div><div class="eyebrow">IT-SERVICEBEREICH</div><h1>Ticketübersicht</h1><p class="muted">Anliegen aufnehmen, bewerten und weiterverfolgen.</p></div><button class="primary" id="new">＋ Neues Ticket</button></section>
 <section class="metrics" id="metrics" aria-label="Kennzahlen"></section>
-<section class="panel" aria-label="Tickets"><div class="filters"><input id="search" type="search" aria-label="Tickets durchsuchen" placeholder="Ticketnummer oder Stichwort suchen"><select id="type" aria-label="Tickettyp filtern"></select><select id="status" aria-label="Status filtern"></select></div><div class="rows" id="rows"></div></section>
+<section class="panel" aria-label="Tickets"><div class="filters"><select id="view" aria-label="Ansicht"></select><select id="requester-filter" aria-label="Anfragende Person" hidden></select><input id="search" type="search" aria-label="Tickets durchsuchen" placeholder="Ticketnummer oder Stichwort suchen"><select id="type" aria-label="Tickettyp filtern"></select><select id="status" aria-label="Status filtern"></select></div><div class="rows" id="rows"></div></section>
 <p class="muted storage">Prototyp mit fiktiven LLSG-Daten. Tickets und Anhänge werden in diesem Browser gespeichert.</p><p id="notice" role="status"></p>
 </main>
 <dialog class="dialog" id="dialog" aria-labelledby="dialog-title"><div class="dialog-head"><div><div class="eyebrow" id="dialog-kicker"></div><h2 id="dialog-title"></h2></div><button id="close" aria-label="Schließen">×</button></div><div class="dialog-content" id="content"></div></dialog>

@@ -87,7 +87,37 @@ function applyLanguage() {
 }
 $("language").onchange = () => { setLanguage($("language").value); applyLanguage(); };
 
+const views = ["Alle Tickets", "Handlungsbedarf", "Meine Anliegen"];
+function queueRank(ticket) {
+  if (ticket.status === statuses[3]) return 5;
+  if (ticket.status === statuses[2]) return 4;
+  if (ticket.priority === priorities[3]) return 0;
+  if (ticket.status === statuses[0] || !ticket.owner) return 1;
+  if (ticket.decision === decisions[1]) return 2;
+  return 3;
+}
+function incidentPriority(ticket) {
+  if (ticket.type !== types[1] || !ticket.urgency) return "";
+  const impact = ["Nur ich", "Ein Team", "Mehrere Teams", "Ganze Organisation"].indexOf(ticket.intakeAnswers?.impact);
+  const urgency = ["Niedrig", "Normal", "Hoch", "Sofort"].indexOf(ticket.urgency);
+  if (impact < 0 || urgency < 0) return "";
+  const matrix = [
+    [0, 1, 1, 2],
+    [1, 1, 2, 2],
+    [1, 2, 2, 3],
+    [2, 2, 3, 3]
+  ];
+  return priorities[matrix[impact][urgency]];
+}
+
 function render() {
+  const view = $("view");
+  view.innerHTML = options(views, view.value);
+  const requesterFilter = $("requester-filter");
+  requesterFilter.hidden = view.value !== views[2];
+  const requesterNames = [...new Set(tickets.map(ticket => ticket.requester).filter(Boolean))].sort((a,b) => a.localeCompare(b,getLanguage()));
+  requesterFilter.innerHTML = options(["Person auswählen", ...requesterNames], requesterFilter.value);
+
   const totals = [
     ["Offene Tickets", tickets.filter(t => t.status !== statuses[3]).length],
     ["Neue Tickets", tickets.filter(t => t.status === statuses[0]).length],
@@ -97,11 +127,14 @@ function render() {
   $("metrics").innerHTML = totals.map(([label, count]) => '<div class="metric"><strong>' + count + '</strong>' + esc(t(label)) + '</div>').join("");
   const query = $("search").value.trim().toLocaleLowerCase(getLanguage());
   const filtered = tickets.filter(t =>
+    (view.value !== views[2] || (requesterFilter.selectedIndex > 0 && t.requester === requesterFilter.value)) &&
     (!$("type").selectedIndex || t.type === $("type").value) &&
     (!$("status").selectedIndex || t.status === $("status").value) &&
     [number(t), t.title, t.description, t.owner, t.service, t.requester, t.department, translate(t.service), translate(t.department), translate(t.type), translate(t.status), translate(t.priority)].join(" ").toLocaleLowerCase(getLanguage()).includes(query)
   );
-  $("rows").innerHTML = filtered.slice().reverse().map(t =>
+  const ordered = filtered.slice().reverse();
+  if (view.value === views[1]) ordered.sort((a,b) => queueRank(a) - queueRank(b) || priorities.indexOf(b.priority) - priorities.indexOf(a.priority));
+  $("rows").innerHTML = ordered.map(t =>
     '<button class="row" data-number="' + t.number + '"><span><small>' + number(t) + ' · ' + esc(translate(t.service || "IT")) + '</small>' + esc(t.title) +
     '</span><span>' + esc(translate(t.type)) + '</span><span class="pill">' + esc(translate(t.status)) +
     '</span><span class="pill ' + (priorities.indexOf(t.priority) >= 2 ? "urgent" : "") + '">' + esc(translate(t.priority)) + '</span></button>'
@@ -217,6 +250,7 @@ function kanbanLink(value) {
 }
 
 function openTicket(ticket) {
+  const suggested = incidentPriority(ticket);
   show(number(ticket) + " · IT", ticket.title,
     '<p class="muted">' + esc(ticket.requester) + (ticket.department ? ' · ' + esc(t(ticket.department)) : '') + ' · ' + esc(t(ticket.service || "IT")) + (ticket.urgency ? " · " + t("Gemeldete Dringlichkeit") + ": " + esc(t(ticket.urgency)) : "") + '</p><p id="ticket-description" class="rich-text">' +
     '</p>' + translationPanel(ticket) + '<section class="intake-context" aria-label="' + esc(t("Erstbewertung")) + '"><p class="rich-label">' + esc(t("Nächster Schritt")) + '</p><p>' +
@@ -226,6 +260,9 @@ function openTicket(ticket) {
     ).join("") + '</section><form id="edit"><div class="grid">' +
     select("Anliegenstyp", "type", types, ticket.type) + select("Bearbeitungsstatus", "status", statuses, ticket.status) +
     select("Priorität", "priority", priorities, ticket.priority) + field("Zuständige Person", "owner", ticket.owner, "maxlength=100") +
+    (suggested ? '<div class="wide intake-context"><p>' +
+      esc(t("Prioritätsvorschlag aus Auswirkung und Dringlichkeit: {priority}", {priority:t(suggested)})) +
+      '</p><button type="button" id="apply-priority">' + esc(t("Vorschlag übernehmen")) + '</button></div>' : '') +
     select("Projektentscheidung", "decision", decisions, ticket.decision) + field("Projektreferenz", "reference", ticket.reference, "maxlength=100") +
     field("Link zur Kanban-Karte", "kanbanUrl", ticket.kanbanUrl, "type=url maxlength=300") +
     '<div class="wide kanban-actions">' +
@@ -237,6 +274,7 @@ function openTicket(ticket) {
       '<li><small class="muted">' + date(entry.at) + '</small> · ' + esc(entry.key ? t(entry.key, Object.fromEntries(Object.entries(entry.values ?? {}).map(([key, value]) => [key, entry.localized?.includes(key) ? t(value) : value]))) : entry.text) + '</li>').join("") + '</ul></section>');
   appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
   bindTranslation(ticket);
+  if (suggested) $("apply-priority").onclick = () => { $("edit").elements.namedItem("priority").value = suggested; };
   $("copy-handoff").onclick = async () => {
     const ticketUrl = new URL(location.pathname, location.origin);
     ticketUrl.hash = "ticket=" + number(ticket);
@@ -297,6 +335,8 @@ $("rows").onclick = (e) => {
 $("search").oninput = render;
 $("type").onchange = render;
 $("status").onchange = render;
+$("view").onchange = render;
+$("requester-filter").onchange = render;
 applyLanguage();
 try {
   tickets = await readTickets(seed);

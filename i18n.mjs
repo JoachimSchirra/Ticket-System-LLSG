@@ -30,6 +30,13 @@ Zuordnung offen|Unassigned|Assegnazione da definire
 Andere Person|Other person|Altra persona
 Alle Abteilungen|All departments|Tutti i reparti
 Bitte auswählen|Select an option|Seleziona un’opzione
+Ansicht|View|Vista
+Alle Tickets|All tickets|Tutti i ticket
+Handlungsbedarf|Needs attention|Richiede attenzione
+Meine Anliegen|My requests|Le mie richieste
+Person auswählen|Select a person|Seleziona una persona
+Prioritätsvorschlag aus Auswirkung und Dringlichkeit: {priority}|Suggested priority based on impact and urgency: {priority}|Priorità suggerita in base a impatto e urgenza: {priority}
+Vorschlag übernehmen|Apply suggestion|Applica suggerimento
 Alle Typen|All types|Tutti i tipi
 Alle Status|All statuses|Tutti gli stati
 Offene Tickets|Open tickets|Ticket aperti
