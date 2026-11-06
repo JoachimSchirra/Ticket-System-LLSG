@@ -9,6 +9,18 @@ const statuses = ["Neu", "In Bearbeitung", "Wartet auf Rückmeldung", "Abgeschlo
 const priorities = ["Niedrig", "Normal", "Hoch", "Kritisch"];
 const decisions = ["Nicht beantragt", "In Prüfung", "Abgelehnt", "Als Projekt übernommen"];
 const services = ["ERP", "Arbeitsplatz & Hardware", "Zugänge & Berechtigungen", "E-Mail & Zusammenarbeit", "Netzwerk & VPN", "Sonstiger IT-Service"];
+const people = [
+  {name:"Big Joe", department:"IT / SAP"},
+  {name:"Felix Klug", department:"IT / SAP"},
+  {name:"Old Grumpy SAP Cat", department:"IT / SAP"},
+  {name:"Max Krüger", department:"Vertrieb"},
+  {name:"Dr. Maria Neumann", department:"Wissenschaft / Forschung"},
+  {name:"Thomas Berger", department:"Geschäftsführung"},
+  {name:"Matthias „Matze“ Reuter", department:"Bereichsübergreifend"},
+  {name:"Elena Rossi", department:"Zuordnung offen"}
+];
+const departments = [...new Set(people.map(person => person.department))];
+const otherRequester = "Andere Person";
 const intake = {
   "Noch nicht eingeordnet": {hint:"Beschreibe dein Anliegen in eigenen Worten. Die IT übernimmt die Einordnung.", fields:[], next:"Anliegen sichten und einem Bearbeitungsweg zuordnen."},
   "Störung": {hint:"Beschreibe, was ausgefallen ist und wie stark die Arbeit betroffen ist.", fields:[["impact","Wer ist betroffen?",["Nur ich","Ein Team","Mehrere Teams","Ganze Organisation"]],["workaround","Gibt es einen Ausweichweg?",["Ja","Nein"]]], next:"Auswirkung und Dringlichkeit prüfen und den Betrieb wiederherstellen."},
@@ -69,7 +81,7 @@ function render() {
   const filtered = tickets.filter(t =>
     (!$("type").selectedIndex || t.type === $("type").value) &&
     (!$("status").selectedIndex || t.status === $("status").value) &&
-    [number(t), t.title, t.description, t.owner, t.service].join(" ").toLocaleLowerCase("de").includes(query)
+    [number(t), t.title, t.description, t.owner, t.service, t.requester, t.department].join(" ").toLocaleLowerCase("de").includes(query)
   );
   $("rows").innerHTML = filtered.slice().reverse().map(t =>
     '<button class="row" data-number="' + t.number + '"><span><small>' + number(t) + ' · ' + esc(t.service || "IT") + '</small>' + esc(t.title) +
@@ -92,7 +104,9 @@ const field = (label, name, value, extra = "") => '<label>' + label + '<input na
 function openNew() {
   show("TICKETANLAGE · IT", "Neues Anliegen", '<form id="edit"><div class="grid">' +
     field("Betreff", "title", "", "required maxlength=120") +
-    field("Anfragende Person", "requester", "", "required maxlength=100") +
+    '<label>Abteilung der anfragenden Person <select name="department">' + options(["Alle Abteilungen", ...departments]) + '</select></label>' +
+    '<label>Anfragende Person <select name="requester" required></select></label>' +
+    '<label id="other-requester" hidden>Name der anfragenden Person<input name="requesterName" maxlength="100" disabled></label>' +
     select("Anliegenstyp", "type", types, types[0]) +
     select("Betroffener Service", "service", ["Noch nicht bekannt", ...services], "Noch nicht bekannt") +
     select("Dringlichkeit (Einschätzung)", "urgency", ["Niedrig", "Normal", "Hoch", "Sofort"], "Normal") +
@@ -109,7 +123,27 @@ function openNew() {
   editor.setValue("");
   $("dialog").addEventListener("close", () => editor.dispose(), {once:true});
   const attachments = bindAttachments();
-  const type = $("edit").elements.namedItem("type");
+  const form = $("edit");
+  const department = form.elements.namedItem("department");
+  const requester = form.elements.namedItem("requester");
+  const requesterName = form.elements.namedItem("requesterName");
+  function updateRequesterInput() {
+    const custom = requester.value === otherRequester;
+    $("other-requester").hidden = !custom;
+    requesterName.required = custom;
+    requesterName.disabled = !custom;
+  }
+  function updateRequesterOptions() {
+    const current = requester.value;
+    const filtered = people.filter(person => !department.selectedIndex || person.department === department.value);
+    requester.innerHTML = '<option value="">Bitte auswählen</option>' +
+      options([...filtered.map(person => person.name), otherRequester], current);
+    updateRequesterInput();
+  }
+  department.onchange = updateRequesterOptions;
+  requester.onchange = updateRequesterInput;
+  updateRequesterOptions();
+  const type = form.elements.namedItem("type");
   const drafts = new Map();
   let shown = type.value;
   function renderIntake() {
@@ -128,13 +162,15 @@ function openNew() {
   $("edit").onsubmit = async (e) => {
     e.preventDefault();
     const fields = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, name === "description" ? value : value.trim()]));
-    if (!fields.title || !fields.requester || !fields.description.trim() || fields.description.length > 3000) {
+    const person = people.find(entry => entry.name === fields.requester);
+    const requesterValue = fields.requester === otherRequester ? fields.requesterName : person?.name;
+    if (!fields.title || !requesterValue || !fields.description.trim() || fields.description.length > 3000) {
       $("error").textContent = "Bitte Betreff, anfragende Person und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.";
       return;
     }
-    const {title, requester, description, type, service, urgency, ...answers} = fields;
+    const {title, description, type, service, urgency, department, requester, requesterName, ...answers} = fields;
     const intakeAnswers = Object.fromEntries(Object.entries(answers).filter(([,value]) => value));
-    const ticket = {title, requester, description, type, service, urgency, intakeAnswers, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
+    const ticket = {title, requester: requesterValue, department: person?.department ?? (department === "Alle Abteilungen" ? "" : department), description, type, service, urgency, intakeAnswers, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
       descriptionFormat: editor.getFormat(), attachments: attachments(),
       status: statuses[0], priority: priorities[1], decision: decisions[0],
       reference: "", rationale: "", owner: "", history: [event("Ticket angelegt")]};
@@ -154,7 +190,7 @@ async function submit(form, next, message) {
 }
 function openTicket(ticket) {
   show(number(ticket) + " · IT", ticket.title,
-    '<p class="muted">' + esc(ticket.requester) + ' · ' + esc(ticket.service || "IT") + (ticket.urgency ? " · Gemeldete Dringlichkeit: " + esc(ticket.urgency) : "") + '</p><p id="ticket-description" class="rich-text">' +
+    '<p class="muted">' + esc(ticket.requester) + (ticket.department ? ' · ' + esc(ticket.department) : '') + ' · ' + esc(ticket.service || "IT") + (ticket.urgency ? " · Gemeldete Dringlichkeit: " + esc(ticket.urgency) : "") + '</p><p id="ticket-description" class="rich-text">' +
     '</p><section class="intake-context" aria-label="Erstbewertung"><p class="rich-label">Nächster Schritt</p><p>' +
     esc(ticket.status === statuses[3] ? "Vorgang abgeschlossen." : intake[ticket.type]?.next ?? intake[types[0]].next) + '</p>' +
     Object.entries(ticket.intakeAnswers ?? {}).map(([name,value]) =>
@@ -220,5 +256,6 @@ try {
   $("new").disabled = true;
   $("notice").textContent = "Der Browserspeicher ist nicht verfügbar. Bitte öffne den Prototyp in einem normalen Browserfenster.";
 }
+
 
 

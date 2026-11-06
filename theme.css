@@ -68,3 +68,4 @@ input, select, textarea { border-color: #a7b4c0; }
 .rt-color-orange { color: #793300; }
 .intake-context { background: #f3f6f8; border-left: 3px solid var(--gold); padding: 10px 14px; border-radius: 4px; margin-bottom: 14px; }
 .intake-context p:last-child { margin-bottom: 0; }
+#other-requester[hidden] { display: none; }
