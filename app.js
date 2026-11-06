@@ -1,10 +1,14 @@
+import { createRichEditor } from "./rich-editor.mjs";
+import { appendRichText } from "./rich-text.mjs";
+import { attachmentsForm, bindAttachments, readTickets, writeTickets } from "./storage.mjs";
+
 "use strict";
 
 const types = ["Noch nicht eingeordnet", "Störung", "Serviceanfrage", "Änderungsantrag", "Neues Vorhaben"];
 const statuses = ["Neu", "In Bearbeitung", "Wartet auf Rückmeldung", "Abgeschlossen"];
 const priorities = ["Niedrig", "Normal", "Hoch", "Kritisch"];
 const decisions = ["Nicht beantragt", "In Prüfung", "Abgelehnt", "Als Projekt übernommen"];
-const key = "llsg.service-desk.v1";
+const services = ["ERP", "Arbeitsplatz & Hardware", "Zugänge & Berechtigungen", "E-Mail & Zusammenarbeit", "Netzwerk & VPN", "Sonstiger IT-Service"];
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]);
 const options = (values, current) => values.map((value) =>
@@ -27,28 +31,18 @@ function seed() {
   }));
 }
 
-function loadTickets() {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : seed();
-  } catch {
-    $("notice").textContent = "Die gespeicherten Daten konnten nicht geladen werden. Die Pilotfälle werden angezeigt.";
-    return seed();
-  }
-}
+let tickets = [];
 
-let tickets = loadTickets();
-function save(next) {
+async function save(next) {
   try {
-    localStorage.setItem(key, JSON.stringify(next));
+    await writeTickets(next);
     tickets = next;
     return true;
   } catch {
-    $("error").textContent = "Der Browser konnte die Änderung nicht speichern.";
+    $("error").textContent = "Die Änderung konnte nicht gespeichert werden. Bitte prüfe den verfügbaren Browserspeicher.";
     return false;
   }
 }
-
 const number = (ticket) => "IT-" + String(ticket.number).padStart(4, "0");
 const date = (value) => new Intl.DateTimeFormat("de-DE", {dateStyle:"short", timeStyle:"short"}).format(new Date(value));
 const event = (text) => ({text, at: new Date().toISOString()});
@@ -91,34 +85,60 @@ function openNew() {
   show("TICKETANLAGE · IT", "Neues Anliegen", '<form id="edit"><div class="grid">' +
     field("Betreff", "title", "", "required maxlength=120") +
     field("Anfragende Person", "requester", "", "required maxlength=100") +
-    field("Betroffener Service", "service", "", "maxlength=80") +
-    '<label class="wide">Beschreibung<textarea name="description" rows="4" required maxlength="3000"></textarea></label></div>' + formEnd);
-  $("edit").onsubmit = (e) => {
+    select("Anliegenstyp", "type", types, types[0]) +
+    select("Betroffener Service", "service", ["Noch nicht bekannt", ...services], "Noch nicht bekannt") +
+    select("Dringlichkeit (Einschätzung)", "urgency", ["Niedrig", "Normal", "Hoch", "Sofort"], "Normal") +
+    '<section class="wide"><p id="description-label" class="rich-label">Beschreibung</p>' +
+    '<div class="rich-editor-group"><div id="description-toolbar" class="rich-toolbar" role="group" aria-label="Beschreibung formatieren"></div>' +
+    '<div id="description-editor" class="rich-editor rich-text" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" aria-labelledby="description-label"></div></div>' +
+    '<textarea hidden id="description-input" name="description"></textarea><p id="description-status" class="rich-editor-status" role="status"></p></section>' +
+    attachmentsForm() + '</div>' + formEnd);
+  const editor = createRichEditor({
+    box: $("description-editor"), toolbar: $("description-toolbar"),
+    field: $("description-input"), status: $("description-status")
+  });
+  editor.setValue("");
+  $("dialog").addEventListener("close", () => editor.dispose(), {once:true});
+  const attachments = bindAttachments();
+  $("edit").onsubmit = async (e) => {
     e.preventDefault();
-    const fields = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, value.trim()]));
-    if (!fields.title || !fields.requester || !fields.description) {
-      $("error").textContent = "Bitte Betreff, anfragende Person und Beschreibung ausfüllen.";
+    const fields = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, name === "description" ? value : value.trim()]));
+    if (!fields.title || !fields.requester || !fields.description.trim() || fields.description.length > 3000) {
+      $("error").textContent = "Bitte Betreff, anfragende Person und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.";
       return;
     }
     const ticket = {...fields, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
-      type: types[0], status: statuses[0], priority: priorities[1], decision: decisions[0],
+      descriptionFormat: editor.getFormat(), attachments: attachments(),
+      status: statuses[0], priority: priorities[1], decision: decisions[0],
       reference: "", rationale: "", owner: "", history: [event("Ticket angelegt")]};
-    if (save([...tickets, ticket])) complete(number(ticket) + " wurde angelegt.");
+    await submit(e.target, [...tickets, ticket], number(ticket) + " wurde angelegt.");
   };
 }
 
+async function submit(form, next, message) {
+  const button = form.querySelector("button.primary");
+  if (button.disabled) return;
+  button.disabled = true;
+  try {
+    if (await save(next)) complete(message);
+  } finally {
+    button.disabled = false;
+  }
+}
 function openTicket(ticket) {
   show(number(ticket) + " · IT", ticket.title,
-    '<p class="muted">' + esc(ticket.requester) + ' · ' + esc(ticket.service || "IT") + '</p><p class="description">' + esc(ticket.description) +
+    '<p class="muted">' + esc(ticket.requester) + ' · ' + esc(ticket.service || "IT") + (ticket.urgency ? " · Gemeldete Dringlichkeit: " + esc(ticket.urgency) : "") + '</p><p id="ticket-description" class="rich-text">' +
     '</p><form id="edit"><div class="grid">' +
     select("Anliegenstyp", "type", types, ticket.type) + select("Bearbeitungsstatus", "status", statuses, ticket.status) +
     select("Priorität", "priority", priorities, ticket.priority) + field("Zuständige Person", "owner", ticket.owner, "maxlength=100") +
     select("Projektentscheidung", "decision", decisions, ticket.decision) + field("Projektreferenz", "reference", ticket.reference, "maxlength=100") +
     '<label class="wide">Begründung der Projektentscheidung<textarea name="rationale" rows="2" maxlength="1200">' +
-    esc(ticket.rationale) + '</textarea></label><label class="wide">Verlaufsnotiz<textarea name="note" rows="2" maxlength="1200"></textarea></label></div>' +
+    esc(ticket.rationale) + '</textarea></label><label class="wide">Verlaufsnotiz<textarea name="note" rows="2" maxlength="1200"></textarea></label>' + attachmentsForm() + '</div>' +
     formEnd + '<section class="history"><h3>Verlauf</h3><ul>' + ticket.history.slice().reverse().map(entry =>
       '<li><small class="muted">' + date(entry.at) + '</small> · ' + esc(entry.text) + '</li>').join("") + '</ul></section>');
-  $("edit").onsubmit = (e) => {
+  appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
+  const attachments = bindAttachments(ticket.attachments);
+  $("edit").onsubmit = async (e) => {
     e.preventDefault();
     const {note, ...fields} = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, value.trim()]));
     if (fields.decision === decisions[3] && !fields.reference) {
@@ -133,12 +153,16 @@ function openTicket(ticket) {
     const history = Object.keys(fields).filter(name => fields[name] !== ticket[name]).map(name =>
       event(labels[name] + " geändert: " + (ticket[name] || "–") + " → " + (fields[name] || "–")));
     if (note) history.push(event(note));
+    const files = attachments();
+    const previousFiles = ticket.attachments ?? [];
+    for (const file of files.filter(file => !previousFiles.includes(file))) history.push(event("Anhang hinzugefügt: " + file.name));
+    for (const file of previousFiles.filter(file => !files.includes(file))) history.push(event("Anhang entfernt: " + file.name));
     if (!history.length) {
       $("dialog").close();
       return;
     }
-    const updated = {...ticket, ...fields, history: [...ticket.history, ...history]};
-    if (save(tickets.map(t => t.number === ticket.number ? updated : t))) complete(number(ticket) + " wurde aktualisiert.");
+    const updated = {...ticket, ...fields, attachments: files, history: [...ticket.history, ...history]};
+    await submit(e.target, tickets.map(t => t.number === ticket.number ? updated : t), number(ticket) + " wurde aktualisiert.");
   };
 }
 
@@ -158,4 +182,11 @@ $("rows").onclick = (e) => {
 $("search").oninput = render;
 $("type").onchange = render;
 $("status").onchange = render;
-render();
+try {
+  tickets = await readTickets(seed);
+  render();
+} catch {
+  $("new").disabled = true;
+  $("notice").textContent = "Der Browserspeicher ist nicht verfügbar. Bitte öffne den Prototyp in einem normalen Browserfenster.";
+}
+

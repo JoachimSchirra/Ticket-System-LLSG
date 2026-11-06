@@ -1,17 +1,17 @@
 # LLSG Service Desk
 
-Eigenständiger Web-Prototyp für einen internen IT-Service-Desk. Die LLSG ist die Beispielorganisation, alle Tickets sind fiktiv.
+Eigenständiger Web-Prototyp für den internen IT-Service-Desk. Die Beispieltickets sind fiktiv.
 
-## Lokal öffnen
+## Starten wie beim LLSG-Kanban-Board
 
-Die Datei index.html im Browser öffnen. Für einen lokalen HTTP-Start im Projektordner `python -m http.server 8000` ausführen und http://localhost:8000 öffnen.
+Unter Windows die Dateien herunterladen und entpacken oder das Repository klonen. Im Projektordner **TICKETSYSTEM-STARTEN.cmd** doppelklicken. Node.js startet den lokalen Server und öffnet http://127.0.0.1:8092 im Standardbrowser. Die Konsole geöffnet lassen. Strg+C beendet die Vorschau. Es sind keine npm-Pakete erforderlich. Alternativ im Projektordner `node server.mjs` ausführen und die Adresse selbst öffnen.
 
 ## Pilotablauf
 
-- Anliegen erfassen und in der Ticketübersicht finden.
-- Ticket als Störung, Serviceanfrage, Änderungsantrag oder neues Vorhaben einordnen.
-- Priorität, Bearbeitungsstatus und Zuständigkeit setzen.
-- Einen Änderungsantrag zur Projektprüfung geben. Bei der Übernahme die Projektreferenz erfassen. Der Anliegenstyp bleibt erhalten.
+- Anliegen mit Typ, betroffenem Service und gemeldeter Dringlichkeit erfassen. Die IT-Priorität wird separat gesetzt.
+- Die Beschreibung mit dem Rich-Text-Editor aus dem Kanban-Board formatieren.
+- Anhänge aus dem Explorer in den Anhangsbereich ziehen oder über die Dateiauswahl hinzufügen. Das Limit beträgt 10 MB je Datei und 40 MB je Ticket.
+- Tickets suchen, filtern, einordnen, zuweisen und bearbeiten. Projektübernahme mit eigener Entscheidung und Projektreferenz dokumentieren.
 - Änderungen und Notizen im Verlauf nachvollziehen.
 
-Der Prototyp speichert Änderungen im lokalen Browserspeicher. Er verwendet eine gemeinsame Demo-Ansicht ohne Benutzerkonten, Rollen oder geteilten Datenbestand. Die Übertragung auf S/4HANA ist ein späterer Entwicklungsstrang.
+Tickets und Anhänge werden im Browserprofil für diese lokale Adresse gespeichert. Ein anderes Browserprofil oder die alte localhost-Adresse hat einen eigenen Datenbestand. Das Repository enthält Anwendungscode und fiktive Beispieltickets. Die Demo verwendet eine gemeinsame Oberfläche ohne Benutzerkonten. S/4HANA ist ein späterer Entwicklungsstrang.
