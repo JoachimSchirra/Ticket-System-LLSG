@@ -69,14 +69,7 @@ export function bindAttachments(initial = []) {
       download.type = "button";
       download.textContent = t("Herunterladen");
       download.setAttribute("aria-label", t("Herunterladen") + " " + file.name);
-      download.onclick = () => {
-        const link = document.createElement("a");
-        const url = URL.createObjectURL(file);
-        link.href = url;
-        link.download = file.name;
-        link.click();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      };
+      download.onclick = () => downloadAttachment(file);
       const remove = document.createElement("button");
       remove.type = "button";
       remove.textContent = t("Entfernen");
@@ -115,4 +108,13 @@ export function bindAttachments(initial = []) {
   };
   render();
   return () => [...files];
+}
+
+export function downloadAttachment(file) {
+  const link = document.createElement("a");
+  const url = URL.createObjectURL(file);
+  link.href = url;
+  link.download = file.name;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

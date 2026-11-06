@@ -29,3 +29,9 @@ Tickets und Anhänge werden im Browserprofil für diese lokale Adresse gespeiche
 - Rückfragen, Antworten und interne Notizen werden typisiert im lokalen Verlauf gespeichert. Die Kennzeichnung ersetzt in der Demo keine rollenbasierte Sichtbarkeit.
 - Eine Freigabe lässt sich anfragen und anschließend mit Person und Begründung genehmigen oder ablehnen. Entscheidungen werden im Verlauf protokolliert.
 - Tickets lassen sich verknüpfen, etwa als Duplikat oder Abhängigkeit. Die Beziehung ist von beiden Tickets aus sichtbar.
+
+## Anliegenportal und IT-Arbeitsplatz
+
+Oben unter **Arbeitsbereich** zwischen Anliegenportal und IT-Arbeitsplatz wechseln. Im Portal die anfragende Person auswählen. Das Portal zeigt ihre Tickets, die Beschreibung, Anhänge und Rückfragen oder Antworten. Im IT-Arbeitsplatz eine Demo-Persona auswählen. Dort sind alle Tickets sowie Bearbeitungsfelder, Freigaben, interne Notizen und Verknüpfungen verfügbar. Der Rollenwechsel dient der Demo. Die lokale Anwendung hat keine Anmeldung und keine serverseitigen Zugriffsrechte.
+
+Die Oberfläche sowie Original- und Zielsprachauswahl unterstützen Deutsch, Englisch, Italienisch und Spanisch. Nach einem Update mit Änderungen am Server den bisherigen Prozess mit Strg+C beenden und die Startdatei erneut öffnen. Die App über http://127.0.0.1:8092 laden.

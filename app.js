@@ -2,7 +2,7 @@ import { getLanguage, setLanguage, languages, localize, t, t as translate } from
 import { translationPanel, bindTranslation } from "./translation.mjs";
 import { createRichEditor } from "./rich-editor.mjs";
 import { appendRichText } from "./rich-text.mjs";
-import { attachmentsForm, bindAttachments, readTickets, writeTickets } from "./storage.mjs";
+import { attachmentsForm, bindAttachments, downloadAttachment, readTickets, writeTickets } from "./storage.mjs";
 
 "use strict";
 
@@ -21,6 +21,9 @@ const people = [
   {name:"Matthias „Matze“ Reuter", department:"Bereichsübergreifend"},
   {name:"Elena Rossi", department:"Zuordnung offen"}
 ];
+const agents = ["Old Grumpy SAP Cat", "Big Joe", "Felix Klug", "Aktivrentner Joe"];
+const demoRequester = "LLSG-Demobenutzer";
+const isAgent = () => $("workspace").value === "it";
 const departments = [...new Set(people.map(person => person.department))];
 const otherRequester = "Andere Person";
 const catalog = {
@@ -56,7 +59,7 @@ function seed() {
   return examples.map(([title, description, type, status, priority, decision], index) => ({
     number: index + 1, title, description, type, status, priority, decision,
     reference: "", rationale: decision === decisions[1] ? "Abstimmung mit Einkauf und Finanzbuchhaltung erforderlich." : "",
-    owner: "", requester: "LLSG-Demobenutzer", service: "ERP", sourceLanguage: "de",
+    owner: "", requester: demoRequester, service: "ERP", sourceLanguage: "de",
     history: [systemEvent("Fiktiver Pilotfall angelegt")]
   }));
 }
@@ -80,7 +83,7 @@ const systemEvent = (key, values, localized) => ({...event(t(key, values)), key,
 function applyLanguage() {
   document.documentElement.lang = getLanguage();
   $("language").value = getLanguage();
-  for (const selector of ["header", ".intro", ".filters", ".storage", "#rich-toolbar-template"]) {
+  for (const selector of ["header", ".workspace-switch", ".intro", ".filters", ".storage", "#rich-toolbar-template"]) {
     const node = document.querySelector(selector);
     localize(node.content ?? node);
   }
@@ -142,15 +145,25 @@ $("clear-metric").onclick = () => {
 };
 
 function render() {
+  const agent = isAgent();
+  document.body.dataset.workspace = agent ? "it" : "portal";
+  const actor = $("actor");
+  const requesterOptions = [...new Set([demoRequester, ...people.map(person => person.name), ...tickets.map(ticket => ticket.requester).filter(Boolean)])];
+  actor.innerHTML = options(agent ? agents : requesterOptions, actor.value);
+  $("actor-label").textContent = t(agent ? "IT-Mitarbeitende" : "Anfragende Person");
+  $("view").hidden = !agent;
+  document.querySelector(".intro h1").textContent = t(agent ? "IT-Arbeitsplatz" : "Meine Anliegen");
+  document.querySelector(".intro p").textContent = t(agent ? "Anliegen aufnehmen, bewerten und weiterverfolgen." : "Melde ein Anliegen und verfolge die Rückmeldungen der IT.");
   const view = $("view");
   view.innerHTML = options(views, view.value);
   const requesterFilter = $("requester-filter");
-  requesterFilter.hidden = view.value !== views[2];
+  requesterFilter.hidden = !agent || view.value !== views[2];
   const requesterNames = [...new Set(tickets.map(ticket => ticket.requester).filter(Boolean))].sort((a,b) => a.localeCompare(b,getLanguage()));
   requesterFilter.innerHTML = options(["Person auswählen", ...requesterNames], requesterFilter.value);
 
-  const scope = tickets.filter(ticket => view.value !== views[2] ||
-    (requesterFilter.selectedIndex > 0 && ticket.requester === requesterFilter.value));
+  const scope = tickets.filter(ticket => agent ?
+    (view.value !== views[2] || (requesterFilter.selectedIndex > 0 && ticket.requester === requesterFilter.value)) :
+    ticket.requester === actor.value);
   for (const button of $("metrics").children) {
     const metric = metrics[button.dataset.metric];
     button.querySelector("strong").textContent = scope.filter(metric.matches).length;
@@ -170,7 +183,7 @@ function render() {
     label:t(metrics[activeMetric].label), shown:filtered.length, total:selected.length
   }) : "";
   const ordered = filtered.slice().reverse();
-  if (view.value === views[1]) ordered.sort((a,b) => queueRank(a) - queueRank(b) || priorities.indexOf(b.priority) - priorities.indexOf(a.priority));
+  if (agent && view.value === views[1]) ordered.sort((a,b) => queueRank(a) - queueRank(b) || priorities.indexOf(b.priority) - priorities.indexOf(a.priority));
   $("rows").innerHTML = ordered.map(t =>
     '<button class="row" data-number="' + t.number + '"><span><small>' + number(t) + ' · ' + esc(translate(t.service || "IT")) + '</small>' + esc(t.title) +
     '</span><span>' + esc(translate(t.type)) + '</span><span class="pill">' + esc(translate(t.status)) +
@@ -233,6 +246,17 @@ function openNew() {
   department.onchange = updateRequesterOptions;
   requester.onchange = updateRequesterInput;
   updateRequesterOptions();
+  if (!isAgent()) {
+    const selected = $("actor").value;
+    if (people.some(person => person.name === selected)) {
+      requester.value = selected;
+      updateRequesterInput();
+    } else {
+      requester.value = otherRequester;
+      requesterName.value = selected;
+      updateRequesterInput();
+    }
+  }
   const type = form.elements.namedItem("type");
   const catalogPicker = form.elements.namedItem("catalogItem");
   const servicePicker = form.elements.namedItem("service");
@@ -283,6 +307,12 @@ function openNew() {
       descriptionFormat: editor.getFormat(), attachments: attachments(),
       status: statuses[0], priority: priorities[1], decision: decisions[0],
       reference: "", rationale: "", owner: "", history: [systemEvent("Ticket angelegt")]};
+    if (!isAgent()) {
+      if (![...$("actor").options].some(option => option.value === ticket.requester)) {
+        $("actor").add(new Option(ticket.requester, ticket.requester));
+      }
+      $("actor").value = ticket.requester;
+    }
     await submit(e.target, [...tickets, ticket], t("{ticket} wurde angelegt.", {ticket:number(ticket)}));
   };
 }
@@ -319,7 +349,39 @@ function relationList(ticket) {
   }).join("");
 }
 
+function openPortalTicket(ticket) {
+  if (ticket.requester !== $("actor").value) return;
+  const conversation = ticket.history.filter(entry =>
+    entry.key === "{kind}: {note}" && ["Rückfrage","Antwort"].includes(entry.values?.kind));
+  const attachments = (ticket.attachments ?? []).map((file, index) =>
+    '<li><button type="button" data-download="' + index + '">' + esc(t("Herunterladen") + " · " + file.name) + '</button></li>').join("");
+  show(number(ticket), ticket.title,
+    '<p class="pill">' + esc(t(ticket.status)) + '</p><p id="ticket-description" class="rich-text"></p>' +
+    translationPanel(ticket) + (attachments ? '<h3>' + esc(t("Anhänge")) + '</h3><ul id="portal-attachments">' + attachments + '</ul>' : '') +
+    '<section class="history"><h3>' + esc(t("Kommunikation")) + '</h3><ul>' +
+    conversation.map(entry => '<li><small class="muted">' + esc(date(entry.at)) + '</small> · ' +
+      esc(t(entry.values.kind) + " · " + (entry.values.author ? entry.values.author + ": " : "") + entry.values.note) + '</li>').join("") +
+    '</ul></section><form id="edit"><label>' + esc(t("Antwort")) +
+    '<textarea name="note" rows="3" maxlength="1200" required></textarea></label>' + formEnd());
+  appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
+  bindTranslation(ticket);
+  if (attachments) $("portal-attachments").onclick = event => {
+    const button = event.target.closest("[data-download]");
+    if (button) downloadAttachment(ticket.attachments[Number(button.dataset.download)]);
+  };
+  $("edit").onsubmit = async event => {
+    event.preventDefault();
+    const note = event.target.elements.namedItem("note").value.trim();
+    if (!note) return;
+    const entry = systemEvent("{kind}: {note}", {kind:"Antwort",note,author:$("actor").value}, ["kind"]);
+    const updated = {...ticket, history:[...ticket.history,entry]};
+    await submit(event.target, tickets.map(item => item.number === ticket.number ? updated : item),
+      t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}));
+  };
+}
+
 function openTicket(ticket) {
+  if (!isAgent()) return openPortalTicket(ticket);
   const suggested = incidentPriority(ticket);
   show(number(ticket) + " · IT", ticket.title,
     '<p class="muted">' + esc(ticket.requester) + (ticket.department ? ' · ' + esc(t(ticket.department)) : '') + ' · ' + esc(t(ticket.service || "IT")) + (ticket.urgency ? " · " + t("Gemeldete Dringlichkeit") + ": " + esc(t(ticket.urgency)) : "") + '</p><p id="ticket-description" class="rich-text">' +
@@ -357,7 +419,7 @@ function openTicket(ticket) {
       "", value => { const other = tickets.find(item => String(item.number) === value); return other ? number(other) + " · " + other.title : t("Ticket auswählen"); }) +
     '</div></fieldset>' + attachmentsForm() + '</div>' +
     formEnd() + '<section class="history"><h3>' + esc(t("Verlauf")) + '</h3><ul>' + ticket.history.slice().reverse().map(entry =>
-      '<li><small class="muted">' + date(entry.at) + '</small> · ' + esc(entry.key ? t(entry.key, Object.fromEntries(Object.entries(entry.values ?? {}).map(([key, value]) => [key, entry.localized?.includes(key) ? t(value) : value]))) : entry.text) + '</li>').join("") + '</ul></section>');
+      '<li><small class="muted">' + date(entry.at) + '</small> · ' + (entry.values?.author ? esc(entry.values.author) + " · " : "") + esc(entry.key ? t(entry.key, Object.fromEntries(Object.entries(entry.values ?? {}).map(([key, value]) => [key, entry.localized?.includes(key) ? t(value) : value]))) : entry.text) + '</li>').join("") + '</ul></section>');
   appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
   bindTranslation(ticket);
   if (suggested) $("apply-priority").onclick = () => { $("edit").elements.namedItem("priority").value = suggested; };
@@ -409,7 +471,7 @@ function openTicket(ticket) {
     const history = Object.keys(fields).filter(name => fields[name] !== (ticket[name] ?? "")).map(name =>
       systemEvent("{field} geändert: {before} → {after}", {field:labels[name], before:ticket[name] || "–", after:fields[name] || "–"},
         ["type","status","priority","decision"].includes(name) ? ["field","before","after"] : ["field"]));
-    if (note) history.push(systemEvent("{kind}: {note}", {kind:noteKind,note}, ["kind"]));
+    if (note) history.push(systemEvent("{kind}: {note}", {kind:noteKind,note,author:$("actor").value}, ["kind"]));
     let approval = ticket.approval;
     if (approvalAction) {
       if (!approver || !approvalReason || (approvalAction !== approvalDecisions[0] && approval?.status !== "Freigabe ausstehend")) {
@@ -463,10 +525,14 @@ $("type").onchange = render;
 $("status").onchange = render;
 $("view").onchange = render;
 $("requester-filter").onchange = render;
+$("workspace").onchange = () => { activeMetric = ""; render(); };
+$("actor").onchange = render;
 applyLanguage();
+$("language").disabled = false;
 try {
   tickets = await readTickets(seed);
   render();
+  $("new").disabled = false;
   const openLinkedTicket = () => {
     const match = /^#ticket=(IT-\d+)$/.exec(location.hash);
     const linked = match && tickets.find(ticket => number(ticket) === match[1]);
@@ -478,6 +544,9 @@ try {
   $("new").disabled = true;
   $("notice").textContent = t("Der Browserspeicher ist nicht verfügbar. Bitte öffne den Prototyp in einem normalen Browserfenster.");
 }
+
+
+
 
 
 
