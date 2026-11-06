@@ -9,6 +9,14 @@ const statuses = ["Neu", "In Bearbeitung", "Wartet auf Rückmeldung", "Abgeschlo
 const priorities = ["Niedrig", "Normal", "Hoch", "Kritisch"];
 const decisions = ["Nicht beantragt", "In Prüfung", "Abgelehnt", "Als Projekt übernommen"];
 const services = ["ERP", "Arbeitsplatz & Hardware", "Zugänge & Berechtigungen", "E-Mail & Zusammenarbeit", "Netzwerk & VPN", "Sonstiger IT-Service"];
+const intake = {
+  "Noch nicht eingeordnet": {hint:"Beschreibe dein Anliegen in eigenen Worten. Die IT übernimmt die Einordnung.", fields:[], next:"Anliegen sichten und einem Bearbeitungsweg zuordnen."},
+  "Störung": {hint:"Beschreibe, was ausgefallen ist und wie stark die Arbeit betroffen ist.", fields:[["impact","Wer ist betroffen?",["Nur ich","Ein Team","Mehrere Teams","Ganze Organisation"]],["workaround","Gibt es einen Ausweichweg?",["Ja","Nein"]]], next:"Auswirkung und Dringlichkeit prüfen und den Betrieb wiederherstellen."},
+  "Serviceanfrage": {hint:"Gib an, für wen und bis wann die Leistung gebraucht wird.", fields:[["beneficiary","Für wen ist die Anfrage?",["Für mich","Für eine andere Person","Für ein Team"]],["needed","Benötigt bis","date"]], next:"Standardleistung und erforderliche Freigabe prüfen."},
+  "Änderungsantrag": {hint:"Beschreibe den heutigen Zustand und das gewünschte Ergebnis.", fields:[["changeScope","Welche Art von Änderung?",["Konfiguration","Funktionserweiterung","Schnittstelle","Sonstiges"]],["needed","Gewünschter Termin","date"]], next:"Auswirkungen und Risiken bewerten und über Freigabe oder Projektprüfung entscheiden."},
+  "Neues Vorhaben": {hint:"Beschreibe das angestrebte Ergebnis und wer davon profitiert.", fields:[["coordination","Welche Abstimmung ist absehbar?",["Ein Team","Mehrere Teams","Externe Beteiligte"]],["needed","Gewünschter Termin","date"]], next:"Ziel, Nutzen und Zuständigkeit klären und bei Bedarf zur Projektprüfung geben."}
+};
+const intakeLabels = Object.fromEntries(Object.values(intake).flatMap(item => item.fields).map(([key,label]) => [key,label]));
 const $ = (id) => document.getElementById(id);
 const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]);
 const options = (values, current) => values.map((value) =>
@@ -38,8 +46,8 @@ async function save(next) {
     await writeTickets(next);
     tickets = next;
     return true;
-  } catch {
-    $("error").textContent = "Die Änderung konnte nicht gespeichert werden. Bitte prüfe den verfügbaren Browserspeicher.";
+  } catch (error) {
+    $("error").textContent = error.message === "stale" ? "Der Datenstand wurde in einem anderen Tab geändert. Bitte lade die Seite neu und wiederhole die Änderung." : "Die Änderung konnte nicht gespeichert werden. Bitte prüfe den verfügbaren Browserspeicher.";
     return false;
   }
 }
@@ -88,6 +96,7 @@ function openNew() {
     select("Anliegenstyp", "type", types, types[0]) +
     select("Betroffener Service", "service", ["Noch nicht bekannt", ...services], "Noch nicht bekannt") +
     select("Dringlichkeit (Einschätzung)", "urgency", ["Niedrig", "Normal", "Hoch", "Sofort"], "Normal") +
+    '<section class="wide intake-context"><p id="intake-hint" class="muted" aria-live="polite"></p><div id="intake-fields" class="grid"></div></section>' +
     '<section class="wide"><p id="description-label" class="rich-label">Beschreibung</p>' +
     '<div class="rich-editor-group"><div id="description-toolbar" class="rich-toolbar" role="group" aria-label="Beschreibung formatieren"></div>' +
     '<div id="description-editor" class="rich-editor rich-text" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" aria-labelledby="description-label"></div></div>' +
@@ -100,6 +109,22 @@ function openNew() {
   editor.setValue("");
   $("dialog").addEventListener("close", () => editor.dispose(), {once:true});
   const attachments = bindAttachments();
+  const type = $("edit").elements.namedItem("type");
+  const drafts = new Map();
+  let shown = type.value;
+  function renderIntake() {
+    drafts.set(shown, Object.fromEntries([...$("intake-fields").querySelectorAll("[name]")].map(control => [control.name, control.value])));
+    shown = type.value;
+    const definition = intake[shown];
+    const values = drafts.get(shown) ?? {};
+    $("intake-hint").textContent = definition.hint;
+    $("intake-fields").innerHTML = definition.fields.map(([name, label, choices]) =>
+      choices === "date" ? field(label, name, values[name], "type=date") :
+      select(label, name, ["", ...choices], values[name])
+    ).join("");
+  }
+  type.onchange = renderIntake;
+  renderIntake();
   $("edit").onsubmit = async (e) => {
     e.preventDefault();
     const fields = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, name === "description" ? value : value.trim()]));
@@ -107,7 +132,9 @@ function openNew() {
       $("error").textContent = "Bitte Betreff, anfragende Person und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.";
       return;
     }
-    const ticket = {...fields, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
+    const {title, requester, description, type, service, urgency, ...answers} = fields;
+    const intakeAnswers = Object.fromEntries(Object.entries(answers).filter(([,value]) => value));
+    const ticket = {title, requester, description, type, service, urgency, intakeAnswers, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
       descriptionFormat: editor.getFormat(), attachments: attachments(),
       status: statuses[0], priority: priorities[1], decision: decisions[0],
       reference: "", rationale: "", owner: "", history: [event("Ticket angelegt")]};
@@ -128,7 +155,11 @@ async function submit(form, next, message) {
 function openTicket(ticket) {
   show(number(ticket) + " · IT", ticket.title,
     '<p class="muted">' + esc(ticket.requester) + ' · ' + esc(ticket.service || "IT") + (ticket.urgency ? " · Gemeldete Dringlichkeit: " + esc(ticket.urgency) : "") + '</p><p id="ticket-description" class="rich-text">' +
-    '</p><form id="edit"><div class="grid">' +
+    '</p><section class="intake-context" aria-label="Erstbewertung"><p class="rich-label">Nächster Schritt</p><p>' +
+    esc(ticket.status === statuses[3] ? "Vorgang abgeschlossen." : intake[ticket.type]?.next ?? intake[types[0]].next) + '</p>' +
+    Object.entries(ticket.intakeAnswers ?? {}).map(([name,value]) =>
+      '<p><strong>' + esc(intakeLabels[name] ?? name) + '</strong> · ' + esc(value) + '</p>'
+    ).join("") + '</section><form id="edit"><div class="grid">' +
     select("Anliegenstyp", "type", types, ticket.type) + select("Bearbeitungsstatus", "status", statuses, ticket.status) +
     select("Priorität", "priority", priorities, ticket.priority) + field("Zuständige Person", "owner", ticket.owner, "maxlength=100") +
     select("Projektentscheidung", "decision", decisions, ticket.decision) + field("Projektreferenz", "reference", ticket.reference, "maxlength=100") +
@@ -189,4 +220,5 @@ try {
   $("new").disabled = true;
   $("notice").textContent = "Der Browserspeicher ist nicht verfügbar. Bitte öffne den Prototyp in einem normalen Browserfenster.";
 }
+
 
