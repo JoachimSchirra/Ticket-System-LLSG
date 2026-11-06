@@ -1,3 +1,5 @@
+import { localize, t } from "./i18n.mjs";
+
 const database = new Promise((resolve, reject) => {
   const request = indexedDB.open("llsg-ticket-system", 1);
   request.onupgradeneeded = () => request.result.createObjectStore("workspace");
@@ -57,14 +59,16 @@ export function attachmentsForm() {
 export function bindAttachments(initial = []) {
   let files = [...initial];
   const picker = id("attachment-picker"), zone = id("dropzone"), list = id("attachments");
+  localize(zone);
+  localize(zone.parentElement);
   function render() {
     list.replaceChildren();
     for (const file of files) {
       const item = document.createElement("li");
       const download = document.createElement("button");
       download.type = "button";
-      download.textContent = "Herunterladen";
-      download.setAttribute("aria-label", file.name + " herunterladen");
+      download.textContent = t("Herunterladen");
+      download.setAttribute("aria-label", t("Herunterladen") + " " + file.name);
       download.onclick = () => {
         const link = document.createElement("a");
         const url = URL.createObjectURL(file);
@@ -75,8 +79,8 @@ export function bindAttachments(initial = []) {
       };
       const remove = document.createElement("button");
       remove.type = "button";
-      remove.textContent = "Entfernen";
-      remove.setAttribute("aria-label", file.name + " entfernen");
+      remove.textContent = t("Entfernen");
+      remove.setAttribute("aria-label", t("Entfernen") + " " + file.name);
       remove.onclick = () => { files = files.filter(item => item !== file); render(); };
       item.append(file.name, download, remove);
       list.append(item);
@@ -88,7 +92,7 @@ export function bindAttachments(initial = []) {
     for (const file of selection) {
       if (files.some(item => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified)) continue;
       if (file.size > maxFileSize || total + file.size > maxTicketSize) {
-        issues.push(file.name + " überschreitet das Größenlimit.");
+        issues.push(t("{file} überschreitet das Größenlimit.", {file:file.name}));
         continue;
       }
       files.push(file);

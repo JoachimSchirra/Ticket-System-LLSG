@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 
 const origin = "http://127.0.0.1:8092";
-const files = new Set(["index.html", "theme.css", "app.js", "storage.mjs",
+const files = new Set(["index.html", "theme.css", "app.js", "storage.mjs", "i18n.mjs", "translation.mjs",
   "rich-editor.mjs", "rich-editor-dom.mjs", "rich-text.mjs", "rich-list.mjs"]);
 const types = {html:"text/html", css:"text/css", js:"text/javascript", mjs:"text/javascript"};
 

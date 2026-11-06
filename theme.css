@@ -69,3 +69,12 @@ input, select, textarea { border-color: #a7b4c0; }
 .intake-context { background: #f3f6f8; border-left: 3px solid var(--gold); padding: 10px 14px; border-radius: 4px; margin-bottom: 14px; }
 .intake-context p:last-child { margin-bottom: 0; }
 #other-requester[hidden] { display: none; }
+.language-switch { margin-left: auto; color: white; font-size: .85rem; }
+.language-switch select { color: var(--ink); }
+.translation-panel { border: 1px solid var(--line); padding: 12px; margin-bottom: 14px; border-radius: 8px; }
+.translation-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.translation-controls p, #translation-status { margin: 0; }
+#translation-status:not(:empty), #translation-result:not([hidden]) { margin-top: 12px; }
+#translation-result { border-top: 1px solid var(--line); padding-top: 12px; }
+@media (max-width: 560px) { .language-switch { margin-left: 0; } }
+.kanban-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
