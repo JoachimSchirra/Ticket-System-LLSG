@@ -23,6 +23,14 @@ const people = [
 ];
 const departments = [...new Set(people.map(person => person.department))];
 const otherRequester = "Andere Person";
+const catalog = {
+  "ERP-Berechtigung": {service:"Zugänge & Berechtigungen", hint:"Nenne das ERP-System, die benötigte Rolle und den gewünschten Gültigkeitszeitraum."},
+  "Notebook bereitstellen": {service:"Arbeitsplatz & Hardware", hint:"Nenne Einsatzort, Einsatzbeginn und besondere Anforderungen."},
+  "VPN-Zugang": {service:"Netzwerk & VPN", hint:"Nenne Gerät, Einsatzort und den benötigten Zeitraum."},
+  "Gemeinsames Postfach": {service:"E-Mail & Zusammenarbeit", hint:"Nenne den gewünschten Postfachnamen und die Personen, die Zugriff brauchen."}
+};
+const approvalDecisions = ["Freigabe anfragen", "Genehmigen", "Ablehnen"];
+const relationKinds = ["Verwandt", "Duplikat von", "Blockiert durch", "Wird behoben durch"];
 const intake = {
   "Noch nicht eingeordnet": {hint:"Beschreibe dein Anliegen in eigenen Worten. Die IT übernimmt die Einordnung.", fields:[], next:"Anliegen sichten und einem Bearbeitungsweg zuordnen."},
   "Störung": {hint:"Beschreibe, was ausgefallen ist und wie stark die Arbeit betroffen ist.", fields:[["impact","Wer ist betroffen?",["Nur ich","Ein Team","Mehrere Teams","Ganze Organisation"]],["workaround","Gibt es einen Ausweichweg?",["Ja","Nein"]]], next:"Auswirkung und Dringlichkeit prüfen und den Betrieb wiederherstellen."},
@@ -110,6 +118,29 @@ function incidentPriority(ticket) {
   return priorities[matrix[impact][urgency]];
 }
 
+const metrics = {
+  open: {label:"Offene Tickets", matches:ticket => ticket.status !== statuses[3]},
+  new: {label:"Neue Tickets", matches:ticket => ticket.status === statuses[0]},
+  urgent: {label:"Hoch oder kritisch", matches:ticket => ticket.status !== statuses[3] && priorities.indexOf(ticket.priority) >= 2},
+  project: {label:"In Projektprüfung", matches:ticket => ticket.decision === decisions[1]}
+};
+let activeMetric = "";
+$("metrics").innerHTML = Object.keys(metrics).map(key =>
+  '<button type="button" class="metric" data-metric="' + key + '" aria-pressed="false" aria-controls="rows"><strong></strong><span></span></button>'
+).join("");
+$("metrics").onclick = event => {
+  const button = event.target.closest("[data-metric]");
+  if (!button) return;
+  activeMetric = activeMetric === button.dataset.metric ? "" : button.dataset.metric;
+  render();
+};
+$("clear-metric").onclick = () => {
+  const button = $("metrics").querySelector('[data-metric="' + activeMetric + '"]');
+  activeMetric = "";
+  render();
+  button?.focus();
+};
+
 function render() {
   const view = $("view");
   view.innerHTML = options(views, view.value);
@@ -118,20 +149,26 @@ function render() {
   const requesterNames = [...new Set(tickets.map(ticket => ticket.requester).filter(Boolean))].sort((a,b) => a.localeCompare(b,getLanguage()));
   requesterFilter.innerHTML = options(["Person auswählen", ...requesterNames], requesterFilter.value);
 
-  const totals = [
-    ["Offene Tickets", tickets.filter(t => t.status !== statuses[3]).length],
-    ["Neue Tickets", tickets.filter(t => t.status === statuses[0]).length],
-    ["Hohe Priorität", tickets.filter(t => t.status !== statuses[3] && priorities.indexOf(t.priority) >= 2).length],
-    ["In Projektprüfung", tickets.filter(t => t.decision === decisions[1]).length]
-  ];
-  $("metrics").innerHTML = totals.map(([label, count]) => '<div class="metric"><strong>' + count + '</strong>' + esc(t(label)) + '</div>').join("");
+  const scope = tickets.filter(ticket => view.value !== views[2] ||
+    (requesterFilter.selectedIndex > 0 && ticket.requester === requesterFilter.value));
+  for (const button of $("metrics").children) {
+    const metric = metrics[button.dataset.metric];
+    button.querySelector("strong").textContent = scope.filter(metric.matches).length;
+    button.querySelector("span").textContent = t(metric.label);
+    button.setAttribute("aria-pressed", String(activeMetric === button.dataset.metric));
+  }
+  const selected = activeMetric ? scope.filter(metrics[activeMetric].matches) : scope;
   const query = $("search").value.trim().toLocaleLowerCase(getLanguage());
-  const filtered = tickets.filter(t =>
-    (view.value !== views[2] || (requesterFilter.selectedIndex > 0 && t.requester === requesterFilter.value)) &&
+  const filtered = selected.filter(t =>
     (!$("type").selectedIndex || t.type === $("type").value) &&
     (!$("status").selectedIndex || t.status === $("status").value) &&
     [number(t), t.title, t.description, t.owner, t.service, t.requester, t.department, translate(t.service), translate(t.department), translate(t.type), translate(t.status), translate(t.priority)].join(" ").toLocaleLowerCase(getLanguage()).includes(query)
   );
+  $("metric-filter").hidden = !activeMetric;
+  $("clear-metric").textContent = t("Kachelfilter entfernen");
+  $("metric-result").textContent = activeMetric ? t("{label}: {shown} von {total} Tickets", {
+    label:t(metrics[activeMetric].label), shown:filtered.length, total:selected.length
+  }) : "";
   const ordered = filtered.slice().reverse();
   if (view.value === views[1]) ordered.sort((a,b) => queueRank(a) - queueRank(b) || priorities.indexOf(b.priority) - priorities.indexOf(a.priority));
   $("rows").innerHTML = ordered.map(t =>
@@ -159,6 +196,7 @@ function openNew() {
     '<label>' + esc(t("Anfragende Person")) + ' <select name="requester" required></select></label>' +
     '<label id="other-requester" hidden>' + esc(t("Name der anfragenden Person")) + '<input name="requesterName" maxlength="100" disabled></label>' +
     select("Sprache des Originals", "sourceLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
+    select("Servicekatalog", "catalogItem", ["", ...Object.keys(catalog)], "", value => t(value || "Vorlage auswählen (optional)")) +
     select("Anliegenstyp", "type", types, types[0]) +
     select("Betroffener Service", "service", ["Noch nicht bekannt", ...services], "Noch nicht bekannt") +
     select("Dringlichkeit (Einschätzung)", "urgency", ["Niedrig", "Normal", "Hoch", "Sofort"], "Normal") +
@@ -196,6 +234,22 @@ function openNew() {
   requester.onchange = updateRequesterInput;
   updateRequesterOptions();
   const type = form.elements.namedItem("type");
+  const catalogPicker = form.elements.namedItem("catalogItem");
+  const servicePicker = form.elements.namedItem("service");
+  const titleInput = form.elements.namedItem("title");
+  catalogPicker.onchange = () => {
+    const template = catalog[catalogPicker.value];
+    if (template) {
+      type.value = types[2];
+      servicePicker.value = template.service;
+      if (!titleInput.value.trim()) titleInput.value = t(catalogPicker.value);
+    }
+    renderIntake();
+  };
+  servicePicker.onchange = () => {
+    if (catalog[catalogPicker.value]?.service !== servicePicker.value) catalogPicker.value = "";
+    renderIntake();
+  };
   const drafts = new Map();
   let shown = type.value;
   function renderIntake() {
@@ -203,13 +257,16 @@ function openNew() {
     shown = type.value;
     const definition = intake[shown];
     const values = drafts.get(shown) ?? {};
-    $("intake-hint").textContent = t(definition.hint);
+    $("intake-hint").textContent = t(catalog[catalogPicker.value]?.hint ?? definition.hint);
     $("intake-fields").innerHTML = definition.fields.map(([name, label, choices]) =>
       choices === "date" ? field(label, name, values[name], "type=date") :
       select(label, name, ["", ...choices], values[name])
     ).join("");
   }
-  type.onchange = renderIntake;
+  type.onchange = () => {
+    if (type.value !== types[2]) catalogPicker.value = "";
+    renderIntake();
+  };
   renderIntake();
   $("edit").onsubmit = async (e) => {
     e.preventDefault();
@@ -220,9 +277,9 @@ function openNew() {
       $("error").textContent = t("Bitte Betreff, anfragende Person und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.");
       return;
     }
-    const {title, description, type, service, urgency, department, requester, requesterName, sourceLanguage, ...answers} = fields;
+    const {title, description, type, service, urgency, department, requester, requesterName, sourceLanguage, catalogItem, ...answers} = fields;
     const intakeAnswers = Object.fromEntries(Object.entries(answers).filter(([,value]) => value));
-    const ticket = {title, requester: requesterValue, department: person?.department ?? (department === "Alle Abteilungen" ? "" : department), description, type, service, urgency, sourceLanguage, intakeAnswers, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
+    const ticket = {title, requester: requesterValue, department: person?.department ?? (department === "Alle Abteilungen" ? "" : department), description, type, service, urgency, sourceLanguage, catalogItem, intakeAnswers, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
       descriptionFormat: editor.getFormat(), attachments: attachments(),
       status: statuses[0], priority: priorities[1], decision: decisions[0],
       reference: "", rationale: "", owner: "", history: [systemEvent("Ticket angelegt")]};
@@ -249,12 +306,26 @@ function kanbanLink(value) {
   } catch { return ""; }
 }
 
+function relationList(ticket) {
+  const outgoing = (ticket.relations ?? []).map(relation => ({...relation, incoming:false}));
+  const incoming = tickets.flatMap(other => (other.relations ?? []).filter(relation => relation.target === ticket.number)
+    .map(relation => ({kind:relation.kind, target:other.number, incoming:true})));
+  return [...outgoing, ...incoming].map(relation => {
+    const related = tickets.find(other => other.number === relation.target);
+    return related ? '<li>' + (relation.incoming ? '← ' : '→ ') + esc(t(relation.kind)) + ' · <button type="button" data-related="' +
+      related.number + '">' + esc(number(related) + " · " + related.title) + '</button>' +
+      (relation.incoming ? '' : ' <button type="button" data-unlink="' + related.number + '">' + esc(t("Beziehung entfernen")) + '</button>') +
+      '</li>' : "";
+  }).join("");
+}
+
 function openTicket(ticket) {
   const suggested = incidentPriority(ticket);
   show(number(ticket) + " · IT", ticket.title,
     '<p class="muted">' + esc(ticket.requester) + (ticket.department ? ' · ' + esc(t(ticket.department)) : '') + ' · ' + esc(t(ticket.service || "IT")) + (ticket.urgency ? " · " + t("Gemeldete Dringlichkeit") + ": " + esc(t(ticket.urgency)) : "") + '</p><p id="ticket-description" class="rich-text">' +
     '</p>' + translationPanel(ticket) + '<section class="intake-context" aria-label="' + esc(t("Erstbewertung")) + '"><p class="rich-label">' + esc(t("Nächster Schritt")) + '</p><p>' +
     esc(t(ticket.status === statuses[3] ? "Vorgang abgeschlossen." : intake[ticket.type]?.next ?? intake[types[0]].next)) + '</p>' +
+    (ticket.catalogItem ? '<p><strong>' + esc(t("Servicekatalog")) + '</strong> · ' + esc(t(ticket.catalogItem)) + '</p>' : '') +
     Object.entries(ticket.intakeAnswers ?? {}).map(([name,value]) =>
       '<p><strong>' + esc(t(intakeLabels[name] ?? name)) + '</strong> · ' + esc(name === "needed" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat(getLanguage(), {dateStyle:"medium", timeZone:"UTC"}).format(new Date(value)) : t(value)) + '</p>'
     ).join("") + '</section><form id="edit"><div class="grid">' +
@@ -269,7 +340,22 @@ function openTicket(ticket) {
     (kanbanLink(ticket.kanbanUrl) ? '<a href="' + esc(kanbanLink(ticket.kanbanUrl)) + '" target="_blank" rel="noopener noreferrer">' + esc(t("Kanban-Karte öffnen")) + '</a>' : '') +
     '<button type="button" id="copy-handoff">' + esc(t("Übergabe kopieren")) + '</button><span id="handoff-status" role="status"></span></div>' +
     '<label class="wide">' + esc(t("Begründung der Projektentscheidung")) + '<textarea name="rationale" rows="2" maxlength="1200">' +
-    esc(ticket.rationale) + '</textarea></label><label class="wide">' + esc(t("Verlaufsnotiz")) + '<textarea name="note" rows="2" maxlength="1200"></textarea></label>' + attachmentsForm() + '</div>' +
+    esc(ticket.rationale) + '</textarea></label>' +
+    '<fieldset class="wide feature-group"><legend>' + esc(t("Kommunikation")) + '</legend><div class="grid">' +
+    select("Art der Rückmeldung", "noteKind", ["Rückfrage", "Antwort", "Interne Notiz"], "Interne Notiz") +
+    '<label class="wide">' + esc(t("Nachricht")) + '<textarea name="note" rows="2" maxlength="1200"></textarea></label></div></fieldset>' +
+    '<fieldset class="wide feature-group"><legend>' + esc(t("Freigabe")) + '</legend><div class="grid">' +
+    '<p class="wide">' + esc(t(ticket.approval?.status || "Keine Freigabe erfasst")) +
+    (ticket.approval?.person ? ' · ' + esc(ticket.approval.person) : '') + '</p>' +
+    select("Freigabeaktion", "approvalAction", ["", ...approvalDecisions], "", value => t(value || "Keine Änderung")) +
+    field("Freigebende Person", "approver", ticket.approval?.person, "maxlength=100") +
+    '<label class="wide">' + esc(t("Begründung der Freigabe")) + '<textarea name="approvalReason" rows="2" maxlength="1200"></textarea></label></div></fieldset>' +
+    '<fieldset class="wide feature-group"><legend>' + esc(t("Ticketbeziehungen")) + '</legend>' +
+    '<ul id="ticket-relations">' + relationList(ticket) + '</ul><div class="grid">' +
+    select("Beziehungstyp", "relationKind", relationKinds, relationKinds[0]) +
+    select("Verknüpftes Ticket", "relationTarget", ["", ...tickets.filter(other => other.number !== ticket.number).map(other => String(other.number))],
+      "", value => { const other = tickets.find(item => String(item.number) === value); return other ? number(other) + " · " + other.title : t("Ticket auswählen"); }) +
+    '</div></fieldset>' + attachmentsForm() + '</div>' +
     formEnd() + '<section class="history"><h3>' + esc(t("Verlauf")) + '</h3><ul>' + ticket.history.slice().reverse().map(entry =>
       '<li><small class="muted">' + date(entry.at) + '</small> · ' + esc(entry.key ? t(entry.key, Object.fromEntries(Object.entries(entry.values ?? {}).map(([key, value]) => [key, entry.localized?.includes(key) ? t(value) : value]))) : entry.text) + '</li>').join("") + '</ul></section>');
   appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
@@ -286,9 +372,27 @@ function openTicket(ticket) {
     }
   };
   const attachments = bindAttachments(ticket.attachments);
+  const removedLinks = new Set();
+  $("ticket-relations").onclick = event => {
+    const link = event.target.closest("[data-related]");
+    if (link) {
+      const related = tickets.find(item => item.number === Number(link.dataset.related));
+      if (related && window.confirm(t("Zum verknüpften Ticket wechseln? Ungespeicherte Änderungen gehen verloren."))) {
+        $("dialog").close();
+        openTicket(related);
+      }
+    }
+    const unlink = event.target.closest("[data-unlink]");
+    if (unlink) {
+      const target = Number(unlink.dataset.unlink);
+      if (removedLinks.has(target)) removedLinks.delete(target);
+      else removedLinks.add(target);
+      unlink.textContent = t(removedLinks.has(target) ? "Entfernen rückgängig" : "Beziehung entfernen");
+    }
+  };
   $("edit").onsubmit = async (e) => {
     e.preventDefault();
-    const {note, ...fields} = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, value.trim()]));
+    const {note, noteKind, approvalAction, approver, approvalReason, relationKind, relationTarget, ...fields} = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, value.trim()]));
     if (fields.kanbanUrl && !kanbanLink(fields.kanbanUrl)) {
       $("error").textContent = t("Bitte einen Kartenlink vom lokalen Kanban-Board einfügen.");
       return;
@@ -305,7 +409,29 @@ function openTicket(ticket) {
     const history = Object.keys(fields).filter(name => fields[name] !== (ticket[name] ?? "")).map(name =>
       systemEvent("{field} geändert: {before} → {after}", {field:labels[name], before:ticket[name] || "–", after:fields[name] || "–"},
         ["type","status","priority","decision"].includes(name) ? ["field","before","after"] : ["field"]));
-    if (note) history.push(event(note));
+    if (note) history.push(systemEvent("{kind}: {note}", {kind:noteKind,note}, ["kind"]));
+    let approval = ticket.approval;
+    if (approvalAction) {
+      if (!approver || !approvalReason || (approvalAction !== approvalDecisions[0] && approval?.status !== "Freigabe ausstehend")) {
+        $("error").textContent = t("Bitte Person und Begründung angeben. Für eine Entscheidung muss eine Freigabe offen sein.");
+        return;
+      }
+      const status = ["Freigabe ausstehend", "Genehmigt", "Abgelehnt"][approvalDecisions.indexOf(approvalAction)];
+      approval = {status, person:approver, reason:approvalReason};
+      history.push(systemEvent("{status} · {person}: {reason}", {status, person:approver, reason:approvalReason}, ["status"]));
+    }
+    const previousRelations = ticket.relations ?? [];
+    const relations = previousRelations.filter(relation => !removedLinks.has(relation.target));
+    for (const target of removedLinks) history.push(systemEvent("Beziehung entfernt: {ticket}", {ticket:number({number:target})}));
+    if (relationTarget) {
+      const target = tickets.find(item => item.number === Number(relationTarget));
+      if (!target || target.number === ticket.number || relations.some(relation => relation.target === target.number)) {
+        $("error").textContent = t("Diese Ticketbeziehung ist bereits vorhanden oder ungültig.");
+        return;
+      }
+      relations.push({target:target.number, kind:relationKind});
+      history.push(systemEvent("{kind}: {ticket}", {kind:relationKind,ticket:number(target)}, ["kind"]));
+    }
     const files = attachments();
     const previousFiles = ticket.attachments ?? [];
     for (const file of files.filter(file => !previousFiles.includes(file))) history.push(systemEvent("Anhang hinzugefügt: {file}", {file:file.name}));
@@ -314,7 +440,7 @@ function openTicket(ticket) {
       $("dialog").close();
       return;
     }
-    const updated = {...ticket, ...fields, attachments: files, history: [...ticket.history, ...history]};
+    const updated = {...ticket, ...fields, attachments: files, approval, relations, history: [...ticket.history, ...history]};
     await submit(e.target, tickets.map(t => t.number === ticket.number ? updated : t), t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}));
   };
 }

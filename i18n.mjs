@@ -2,6 +2,50 @@ const rows = `
 Noch nicht eingeordnet|Unclassified|Da classificare
 Störung|Incident|Incidente
 Serviceanfrage|Service request|Richiesta di servizio
+Servicekatalog|Service catalogue|Catalogo dei servizi
+Vorlage auswählen (optional)|Choose a template (optional)|Scegli un modello (facoltativo)
+ERP-Berechtigung|ERP access|Accesso ERP
+Notebook bereitstellen|Request a laptop|Richiedi un portatile
+VPN-Zugang|VPN access|Accesso VPN
+Gemeinsames Postfach|Shared mailbox|Casella di posta condivisa
+Nenne das ERP-System, die benötigte Rolle und den gewünschten Gültigkeitszeitraum.|Specify the ERP system, required role and desired validity period.|Indica il sistema ERP, il ruolo richiesto e il periodo di validità.
+Nenne Einsatzort, Einsatzbeginn und besondere Anforderungen.|Specify the location, start date and any special requirements.|Indica sede, data di inizio ed eventuali requisiti particolari.
+Nenne Gerät, Einsatzort und den benötigten Zeitraum.|Specify the device, location and required period.|Indica il dispositivo, la sede e il periodo richiesto.
+Nenne den gewünschten Postfachnamen und die Personen, die Zugriff brauchen.|Specify the mailbox name and who needs access.|Indica il nome della casella e chi deve accedervi.
+Kommunikation|Communication|Comunicazione
+Art der Rückmeldung|Message type|Tipo di messaggio
+Rückfrage|Follow-up question|Domanda di chiarimento
+Antwort|Reply|Risposta
+Interne Notiz|Internal note|Nota interna
+Nachricht|Message|Messaggio
+{kind}: {note}|{kind}: {note}|{kind}: {note}
+Freigabe|Approval|Approvazione
+Keine Freigabe erfasst|No approval recorded|Nessuna approvazione registrata
+Keine Änderung|No change|Nessuna modifica
+Freigabeaktion|Approval action|Azione di approvazione
+Freigabe anfragen|Request approval|Richiedi approvazione
+Genehmigen|Approve|Approva
+Ablehnen|Reject|Rifiuta
+Freigabe ausstehend|Approval pending|Approvazione in sospeso
+Genehmigt|Approved|Approvato
+Freigebende Person|Approver|Responsabile dell’approvazione
+Begründung der Freigabe|Approval rationale|Motivazione dell’approvazione
+Bitte Person und Begründung angeben. Für eine Entscheidung muss eine Freigabe offen sein.|Enter a person and a reason. A decision requires a pending approval.|Indica una persona e una motivazione. Per decidere occorre una richiesta in sospeso.
+{status} · {person}: {reason}|{status} · {person}: {reason}|{status} · {person}: {reason}
+Ticketbeziehungen|Ticket relationships|Relazioni tra ticket
+Beziehungstyp|Relationship type|Tipo di relazione
+Verknüpftes Ticket|Linked ticket|Ticket collegato
+Ticket auswählen|Select a ticket|Seleziona un ticket
+Verwandt|Related|Correlato
+Duplikat von|Duplicate of|Duplicato di
+Blockiert durch|Blocked by|Bloccato da
+Wird behoben durch|Resolved by|Risolto da
+Beziehung entfernen|Remove relationship|Rimuovi relazione
+Entfernen rückgängig|Undo removal|Annulla rimozione
+Beziehung entfernt: {ticket}|Relationship removed: {ticket}|Relazione rimossa: {ticket}
+{kind}: {ticket}|{kind}: {ticket}|{kind}: {ticket}
+Diese Ticketbeziehung ist bereits vorhanden oder ungültig.|This relationship already exists or is invalid.|Questa relazione esiste già o non è valida.
+Zum verknüpften Ticket wechseln? Ungespeicherte Änderungen gehen verloren.|Open the linked ticket? Unsaved changes will be lost.|Aprire il ticket collegato? Le modifiche non salvate andranno perse.
 Änderungsantrag|Change request|Richiesta di modifica
 Neues Vorhaben|New initiative|Nuova iniziativa
 Neu|New|Nuovo
@@ -41,7 +85,9 @@ Alle Typen|All types|Tutti i tipi
 Alle Status|All statuses|Tutti gli stati
 Offene Tickets|Open tickets|Ticket aperti
 Neue Tickets|New tickets|Nuovi ticket
-Hohe Priorität|High priority|Priorità alta
+Hoch oder kritisch|High or critical|Alta o critica
+Kachelfilter entfernen|Clear tile filter|Rimuovi filtro del riquadro
+{label}: {shown} von {total} Tickets|{label}: {shown} of {total} tickets|{label}: {shown} di {total} ticket
 In Projektprüfung|In project review|In valutazione come progetto
 Keine Tickets für diese Auswahl.|No tickets match this selection.|Nessun ticket corrisponde alla selezione.
 Abbrechen|Cancel|Annulla
@@ -226,5 +272,6 @@ export function localize(root) {
     for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, t(value));
   }
 }
+
 
 

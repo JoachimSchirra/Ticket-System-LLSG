@@ -78,3 +78,15 @@ input, select, textarea { border-color: #a7b4c0; }
 #translation-result { border-top: 1px solid var(--line); padding-top: 12px; }
 @media (max-width: 560px) { .language-switch { margin-left: 0; } }
 .kanban-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+
+.metric { text-align: left; font-weight: 500; }
+.metric[aria-pressed="true"] { background: #fff0d1; border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.metric-filter { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; padding: 10px 15px; background: #edf1f4; }
+.metric-filter[hidden] { display: none; }
+.metric-filter p { margin: 0; }
+
+.feature-group { min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.feature-group legend { font-weight: 650; padding: 0 6px; }
+.feature-group p { margin: 0; }
+.feature-group ul:empty { display: none; }
+.feature-group li + li { margin-top: 5px; }

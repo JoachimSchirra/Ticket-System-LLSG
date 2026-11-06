@@ -21,3 +21,11 @@ Tickets und Anhänge werden im Browserprofil für diese lokale Adresse gespeiche
 - Die Sprache der Oberfläche lässt sich zwischen Deutsch, Englisch und Italienisch umschalten. Auswahlwerte werden unabhängig von der Anzeige gespeichert.
 - Beim Erfassen die Sprache des Originals wählen. Im Ticket lassen sich Betreff und Beschreibung per **Mit KI übersetzen** in einer anderen Sprache anzeigen. Das Original bleibt erhalten. Die Funktion setzt eine unterstützte Desktop-Version von Chrome oder Edge mit lokaler Translator API voraus. Beim ersten Einsatz kann der Browser ein Sprachmodell herunterladen. Der Prototyp sendet Tickettexte an keinen Übersetzungsdienst.
 - Unter **Link zur Kanban-Karte** eine Kartenadresse aus der lokalen LLSG-Kanban-Fassung auf Port 8090 oder 8091 einfügen. **Übergabe kopieren** kopiert Ticketnummer, Betreff und Rücklink für die Kanban-Karte. Der Rücklink setzt denselben Ticket-Datenbestand im lokalen Browser voraus.
+
+## Schnellfilter und Serviceabläufe
+
+- Die vier Kennzahlen filtern die Liste per Klick. Ein erneuter Klick auf die aktive Kachel oder **Kachelfilter entfernen** hebt den Filter auf. Suchtext, Typ und Status bleiben erhalten.
+- Der Servicekatalog enthält vier Vorlagen für häufige IT-Anliegen. Die Vorlage setzt den Anliegenstyp und Service und zeigt einen passenden Hinweis an.
+- Rückfragen, Antworten und interne Notizen werden typisiert im lokalen Verlauf gespeichert. Die Kennzeichnung ersetzt in der Demo keine rollenbasierte Sichtbarkeit.
+- Eine Freigabe lässt sich anfragen und anschließend mit Person und Begründung genehmigen oder ablehnen. Entscheidungen werden im Verlauf protokolliert.
+- Tickets lassen sich verknüpfen, etwa als Duplikat oder Abhängigkeit. Die Beziehung ist von beiden Tickets aus sichtbar.
