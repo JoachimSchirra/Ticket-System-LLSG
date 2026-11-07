@@ -1,3 +1,4 @@
+import { serviceDeadlines, deadlineRank, matchingArticles } from "./operations.mjs";
 import { evidenceForm, bindEvidence, activeOutages, nextAction, answerAction, handoffText, draftDiagnosis } from "./highlights.mjs";
 import { getLanguage, setLanguage, languages, localize, t, t as translate } from "./i18n.mjs";
 import { translationPanel, bindTranslation, readingText, translatedTitle } from "./translation.mjs";
@@ -7,11 +8,17 @@ import { attachmentsForm, bindAttachments, downloadAttachment, readTickets, writ
 
 "use strict";
 
-const types = ["Noch nicht eingeordnet", "Störung", "Serviceanfrage", "Änderungsantrag", "Neues Vorhaben"];
+const types = ["Noch nicht eingeordnet", "Störung", "Serviceanfrage", "Änderungsantrag", "Neues Vorhaben", "Problem"];
 const statuses = ["Neu", "In Bearbeitung", "Wartet auf Rückmeldung", "Abgeschlossen"];
 const priorities = ["Niedrig", "Normal", "Hoch", "Kritisch"];
 const decisions = ["Nicht beantragt", "In Prüfung", "Abgelehnt", "Als Projekt übernommen"];
 const services = ["ERP", "Arbeitsplatz & Hardware", "Zugänge & Berechtigungen", "E-Mail & Zusammenarbeit", "Netzwerk & VPN", "Sonstiger IT-Service"];
+const areaServices = {
+  IT:services, HR:["Personalbescheinigung","Eintritt und Austritt"],
+  Marketing:["Marketingmaterial","Kampagnenunterstützung"],
+  Einkauf:["Beschaffungsanfrage","Lieferantenanlage"]
+};
+const areas = Object.keys(areaServices);
 const people = [
   {name:"Big Joe", department:"IT / SAP"},
   {name:"Felix Klug", department:"IT / SAP"},
@@ -28,14 +35,15 @@ const isAgent = () => $("workspace").value === "it";
 const departments = [...new Set(people.map(person => person.department))];
 const otherRequester = "Andere Person";
 const catalog = {
-  "ERP-Berechtigung": {service:"Zugänge & Berechtigungen", hint:"Nenne das ERP-System, die benötigte Rolle und den gewünschten Gültigkeitszeitraum."},
-  "Notebook bereitstellen": {service:"Arbeitsplatz & Hardware", hint:"Nenne Einsatzort, Einsatzbeginn und besondere Anforderungen."},
-  "VPN-Zugang": {service:"Netzwerk & VPN", hint:"Nenne Gerät, Einsatzort und den benötigten Zeitraum."},
-  "Gemeinsames Postfach": {service:"E-Mail & Zusammenarbeit", hint:"Nenne den gewünschten Postfachnamen und die Personen, die Zugriff brauchen."}
+  "ERP-Berechtigung": {service:"Zugänge & Berechtigungen", owner:"Old Grumpy SAP Cat", hint:"Nenne das ERP-System, die benötigte Rolle und den gewünschten Gültigkeitszeitraum."},
+  "Notebook bereitstellen": {service:"Arbeitsplatz & Hardware", owner:"Felix Klug", hint:"Nenne Einsatzort, Einsatzbeginn und besondere Anforderungen."},
+  "VPN-Zugang": {service:"Netzwerk & VPN", owner:"Aktivrentner Joe", hint:"Nenne Gerät, Einsatzort und den benötigten Zeitraum."},
+  "Gemeinsames Postfach": {service:"E-Mail & Zusammenarbeit", owner:"Felix Klug", hint:"Nenne den gewünschten Postfachnamen und die Personen, die Zugriff brauchen."}
 };
 const approvalDecisions = ["Freigabe anfragen", "Genehmigen", "Ablehnen"];
-const relationKinds = ["Verwandt", "Duplikat von", "Blockiert durch", "Wird behoben durch"];
+const relationKinds = ["Verwandt", "Duplikat von", "Blockiert durch", "Wird behoben durch", "Ursache untersucht in", "Dauerhafte Korrektur"];
 const intake = {
+  "Problem": {hint:"Dokumentiere wiederkehrende Störungen und die vermutete Ursache.", fields:[], next:"Ursache untersuchen und einen dauerhaften Change verknüpfen."},
   "Noch nicht eingeordnet": {hint:"Beschreibe dein Anliegen in eigenen Worten. Die IT übernimmt die Einordnung.", fields:[], next:"Anliegen sichten und einem Bearbeitungsweg zuordnen."},
   "Störung": {hint:"Beschreibe, was ausgefallen ist und wie stark die Arbeit betroffen ist.", fields:[["impact","Wer ist betroffen?",["Nur ich","Ein Team","Mehrere Teams","Ganze Organisation"]],["workaround","Gibt es einen Ausweichweg?",["Ja","Nein"]]], next:"Auswirkung und Dringlichkeit prüfen und den Betrieb wiederherstellen."},
   "Serviceanfrage": {hint:"Gib an, für wen und bis wann die Leistung gebraucht wird.", fields:[["beneficiary","Für wen ist die Anfrage?",["Für mich","Für eine andere Person","Für ein Team"]],["needed","Benötigt bis","date"]], next:"Standardleistung und erforderliche Freigabe prüfen."},
@@ -99,9 +107,10 @@ function applyLanguage() {
 }
 $("language").onchange = () => { setLanguage($("language").value); applyLanguage(); };
 
-const views = ["Alle Tickets", "Handlungsbedarf", "Meine Anliegen"];
+const views = ["Alle Tickets", "Handlungsbedarf", "Meine Anliegen", "Meine IT-Aufgaben"];
 function queueRank(ticket) {
   if (ticket.status === statuses[3]) return 5;
+  if (ticket.escalation) return 0;
   if (ticket.nextAction?.state === "fails" || ticket.nextAction?.state === "works") return 0;
   if (ticket.status === statuses[2]) return 4;
   if (ticket.priority === priorities[3]) return 0;
@@ -154,6 +163,9 @@ function render() {
   actor.innerHTML = options(agent ? agents : requesterOptions, actor.value);
   $("actor-label").textContent = t(agent ? "IT-Mitarbeitende" : "Anfragende Person");
   $("view").hidden = !agent;
+  const areaFilter = $("area-filter");
+  areaFilter.hidden = !agent;
+  areaFilter.innerHTML = options(["Alle Servicebereiche", ...areas], areaFilter.value);
   document.querySelector(".intro h1").textContent = t(agent ? "IT-Arbeitsplatz" : "Meine Anliegen");
   document.querySelector(".intro p").textContent = t(agent ? "Anliegen aufnehmen, bewerten und weiterverfolgen." : "Melde ein Anliegen und verfolge die Rückmeldungen der IT.");
   const view = $("view");
@@ -164,7 +176,9 @@ function render() {
   requesterFilter.innerHTML = options(["Person auswählen", ...requesterNames], requesterFilter.value);
 
   const scope = tickets.filter(ticket => agent ?
-    (view.value !== views[2] || (requesterFilter.selectedIndex > 0 && ticket.requester === requesterFilter.value)) :
+    (!areaFilter.selectedIndex || (ticket.area || "IT") === areaFilter.value) &&
+    (view.value !== views[2] || (requesterFilter.selectedIndex > 0 && ticket.requester === requesterFilter.value)) &&
+    (view.value !== views[3] || ((ticket.owner || ticket.nextAction?.by) === actor.value && ![statuses[2],statuses[3]].includes(ticket.status))) :
     ticket.requester === actor.value);
   for (const button of $("metrics").children) {
     const metric = metrics[button.dataset.metric];
@@ -177,7 +191,7 @@ function render() {
   const filtered = selected.filter(t =>
     (!$("type").selectedIndex || t.type === $("type").value) &&
     (!$("status").selectedIndex || t.status === $("status").value) &&
-    [number(t), t.title, t.description, t.owner, t.service, t.requester, t.department, translate(t.service), translate(t.department), translate(t.type), translate(t.status), translate(t.priority)].join(" ").toLocaleLowerCase(getLanguage()).includes(query)
+    [number(t), t.title, t.description, t.owner, t.service, t.requester, t.department, t.system, translate(t.service), translate(t.department), translate(t.type), translate(t.status), translate(t.priority)].join(" ").toLocaleLowerCase(getLanguage()).includes(query)
   );
   $("metric-filter").hidden = !activeMetric;
   $("clear-metric").textContent = t("Kachelfilter entfernen");
@@ -185,9 +199,10 @@ function render() {
     label:t(metrics[activeMetric].label), shown:filtered.length, total:selected.length
   }) : "";
   const ordered = filtered.slice().reverse();
-  if (agent && view.value === views[1]) ordered.sort((a,b) => queueRank(a) - queueRank(b) || priorities.indexOf(b.priority) - priorities.indexOf(a.priority));
+  if (agent && [views[1],views[3]].includes(view.value)) ordered.sort((a,b) => deadlineRank(a) - deadlineRank(b) || queueRank(a) - queueRank(b) || priorities.indexOf(b.priority) - priorities.indexOf(a.priority));
   $("rows").innerHTML = ordered.map(t =>
     '<button class="row" data-number="' + t.number + '"><span><small>' + number(t) + ' · ' + esc(translate(t.service || "IT")) + '</small>' + esc(translatedTitle(t)) +
+    (agent && deadlineRank(t) < 2 ? '<small class="action-indicator">' + esc(translate(deadlineRank(t) === 0 ? "Überfällig" : "Frist naht")) + '</small>' : '') +
     (nextAction(t) ? '<small class="action-indicator">' + esc(translate("Rückmeldung erbeten")) + '</small>' :
       t.nextAction?.state === "fails" ? '<small class="action-indicator">' + esc(translate("Fehler besteht noch")) + '</small>' :
       t.nextAction?.state === "works" ? '<small class="action-indicator">' + esc(translate("Test erfolgreich")) + '</small>' : '') +
@@ -214,8 +229,10 @@ function openNew() {
     '<label>' + esc(t("Anfragende Person")) + ' <select name="requester" required></select></label>' +
     '<label id="other-requester" hidden>' + esc(t("Name der anfragenden Person")) + '<input name="requesterName" maxlength="100" disabled></label>' +
     select("Sprache des Originals", "sourceLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
+    select("Servicebereich", "area", areas, "IT") +
     select("Servicekatalog", "catalogItem", ["", ...Object.keys(catalog)], "", value => t(value || "Vorlage auswählen (optional)")) +
-    select("Anliegenstyp", "type", types, types[0]) +
+    select("Anliegenstyp", "type", isAgent() ? types : types.slice(0,5), types[0]) +
+    field("System oder Gerät", "system", "", "maxlength=120") +
     select("Betroffener Service", "service", ["Noch nicht bekannt", ...services], "Noch nicht bekannt") +
     select("Dringlichkeit (Einschätzung)", "urgency", ["Niedrig", "Normal", "Hoch", "Sofort"], "Normal") +
     '<section class="wide intake-context"><p id="intake-hint" class="muted" aria-live="polite"></p><div id="intake-fields" class="grid"></div></section>' +
@@ -223,7 +240,7 @@ function openNew() {
     '<div class="rich-editor-group"><div id="description-toolbar" class="rich-toolbar" role="group" aria-label="' + esc(t("Beschreibung formatieren")) + '"></div>' +
     '<div id="description-editor" class="rich-editor rich-text" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" aria-labelledby="description-label"></div></div>' +
     '<textarea hidden id="description-input" name="description"></textarea><p id="description-status" class="rich-editor-status" role="status"></p></section>' +
-    '<div id="outage-suggestions" class="wide"></div>' + evidenceForm() +
+    '<div id="knowledge-suggestions" class="wide"></div><div id="outage-suggestions" class="wide"></div>' + evidenceForm() +
     attachmentsForm() + '</div>' + formEnd());
   const editor = createRichEditor({
     box: $("description-editor"), toolbar: $("description-toolbar"),
@@ -268,6 +285,14 @@ function openNew() {
   const catalogPicker = form.elements.namedItem("catalogItem");
   const servicePicker = form.elements.namedItem("service");
   const titleInput = form.elements.namedItem("title");
+  const areaPicker = form.elements.namedItem("area");
+  areaPicker.onchange = () => {
+    const isIT = areaPicker.value === "IT";
+    catalogPicker.closest("label").hidden = !isIT;
+    catalogPicker.value = "";
+    servicePicker.innerHTML = options(["Noch nicht bekannt", ...areaServices[areaPicker.value]], "Noch nicht bekannt");
+    renderIntake();
+  };
   catalogPicker.onchange = () => {
     const template = catalog[catalogPicker.value];
     if (template) {
@@ -283,13 +308,19 @@ function openNew() {
   };
   const drafts = new Map();
   let shown = type.value;
+  titleInput.addEventListener("input",renderKnowledge);
+  function renderKnowledge() {
+    const articles = matchingArticles(tickets,servicePicker.value,titleInput.value,areaPicker.value);
+    $("knowledge-suggestions").innerHTML = articles.length ? '<div class="intake-context"><p class="rich-label">' + esc(t("Passende Hilfeartikel")) + '</p>' + articles.map(article => '<details><summary>' + esc(article.title) + '</summary><p class="rich-text">' + esc(article.body) + '</p></details>').join("") + '</div>' : "";
+  }
   function renderIntake() {
+    renderKnowledge();
     drafts.set(shown, Object.fromEntries([...$("intake-fields").querySelectorAll("[name]")].map(control => [control.name, control.value])));
     shown = type.value;
     const definition = intake[shown];
     const values = drafts.get(shown) ?? {};
     const outage = $("outage-suggestions").querySelector("select")?.value;
-    const matches = shown === types[1] ? activeOutages(tickets, servicePicker.value) : [];
+    const matches = shown === types[1] ? activeOutages(tickets.filter(item => (item.area || "IT") === areaPicker.value), servicePicker.value) : [];
     $("outage-suggestions").innerHTML = matches.length ? '<div class="intake-context"><p>' +
       esc(t("Bekannte Störung gefunden. Du kannst dich als betroffen melden.")) + '</p>' +
       select("Bekannte Störung", "outageTarget", ["", ...matches.map(ticket => String(ticket.number))], outage,
@@ -323,17 +354,17 @@ function openNew() {
       $("error").textContent = t("Bitte Betreff, anfragende Person und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.");
       return;
     }
-    const {title, description, type, service, urgency, department, requester, requesterName, sourceLanguage, catalogItem, outageTarget, ...answers} = fields;
-    const incident = type === types[1] && activeOutages(tickets, service).find(item => String(item.number) === outageTarget);
+    const {title, description, type, service, urgency, department, requester, requesterName, sourceLanguage, catalogItem, outageTarget, system, area, ...answers} = fields;
+    const incident = type === types[1] && activeOutages(tickets.filter(item => (item.area || "IT") === area), service).find(item => String(item.number) === outageTarget);
     if (incident && tickets.some(item => item.relatedOutage === incident.number && item.requester === requesterValue)) {
       $("error").textContent = t("Du hast dich für diese Störung bereits als betroffen gemeldet.");
       return;
     }
     const intakeAnswers = Object.fromEntries(Object.entries(answers).filter(([,value]) => value));
-    const ticket = {title, requester: requesterValue, department: person?.department ?? (department === "Alle Abteilungen" ? "" : department), description, type, service, urgency, sourceLanguage, catalogItem, intakeAnswers, relatedOutage: incident ? incident.number : null, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
+    const ticket = {title, requester: requesterValue, department: person?.department ?? (department === "Alle Abteilungen" ? "" : department), description, type, service, urgency, sourceLanguage, catalogItem, system, area, intakeAnswers, createdAt:new Date().toISOString(), relatedOutage: incident ? incident.number : null, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
       descriptionFormat: editor.getFormat(), attachments: attachments(),
       status: statuses[0], priority: priorities[1], decision: decisions[0],
-      reference: "", rationale: "", owner: "", history: [systemEvent("Ticket angelegt")]};
+      reference: "", rationale: "", owner:catalog[catalogItem]?.owner ?? "", history: [systemEvent("Ticket angelegt")]};
     if (!isAgent()) {
       if (![...$("actor").options].some(option => option.value === ticket.requester)) {
         $("actor").add(new Option(ticket.requester, ticket.requester));
@@ -406,7 +437,7 @@ function openPortalTicket(ticket) {
   const attachments = (ticket.attachments ?? []).map((file, index) =>
     '<li><button type="button" data-download="' + index + '">' + esc(t("Herunterladen") + " · " + file.name) + '</button></li>').join("");
   show(number(ticket), ticket.title,
-    '<p class="pill">' + esc(t(ticket.status)) + '</p><p id="ticket-description" class="rich-text"></p>' +
+    '<p class="pill">' + esc(t(ticket.status)) + '</p>' + (ticket.system ? '<p>' + esc(t("System oder Gerät") + ": " + ticket.system) + '</p>' : '') + '<p id="ticket-description" class="rich-text"></p>' +
     actionDisplay(ticket, true) + outageUpdates(ticket) + translationPanel(ticket) + (attachments ? '<h3>' + esc(t("Anhänge")) + '</h3><ul id="portal-attachments">' + attachments + '</ul>' : '') +
     '<section class="history"><h3>' + esc(t("Kommunikation")) + '</h3><ul>' +
     conversation.map(entry => '<li><small class="muted">' + esc(date(entry.at)) + '</small> · ' +
@@ -452,7 +483,7 @@ function openPortalTicket(ticket) {
 
 function historyEntryText(entry) {
   const values = entry.values ?? {};
-  if (values.note) return esc(t(values.kind) + ": ") + readingText(values.note,values.language);
+  if (values.note) return esc(values.kind ? t(values.kind) + ": " : t("Begründung bei Prioritätswechsel") + ": ") + readingText(values.note,values.language);
   if (values.reason) return esc(t(values.status) + " · " + values.person + ": ") + readingText(values.reason,values.language);
   if (!entry.key) return readingText(entry.text);
   return esc(t(entry.key, Object.fromEntries(Object.entries(values).map(([key,value]) =>
@@ -463,7 +494,22 @@ function agentTools(ticket) {
   const affected = tickets.filter(item => item.relatedOutage === ticket.number);
   const teams = [...new Set(affected.map(item => item.department).filter(Boolean))];
   const group = (label, content) => '<fieldset class="wide feature-group"><legend>' + esc(t(label)) + '</legend><div class="grid">' + content + '</div></fieldset>';
-  return group("Test und Abnahme",
+  return group("Servicefristen und Wissen",
+    '<ul class="wide">' + serviceDeadlines(ticket).map(item => '<li><strong>' + esc(t(item.label)) + '</strong> · ' +
+      esc(date(item.due)) + ' · ' + esc(t(item.status)) + '</li>').join("") + '</ul>' +
+    '<p class="wide muted">' + esc(t("Demo-Fristen laufen rund um die Uhr. Eine Fristwarnung priorisiert das Ticket in der Warteschlange.")) + '</p>' +
+    (ticket.escalation ? '<p class="wide"><strong>' + esc(t("Eskalation")) + '</strong> · ' +
+      esc(ticket.escalation.by) + ' · ' + readingText(ticket.escalation.note,ticket.escalation.language) + '</p>' : '') +
+    field("Eskalationshinweis", "escalationNote", "", "maxlength=500") +
+    (ticket.system ? '<p class="wide">' + esc(t("{count} offene Tickets für {system}", {
+      count:tickets.filter(item => item.system === ticket.system && (item.area || "IT") === (ticket.area || "IT") && item.status !== statuses[3]).length,
+      system:ticket.system
+    })) + '</p>' : '') +
+    select("Wissensartikel", "articleMode", ["","publish","remove"], "", value =>
+      t({publish:"Hilfeartikel veröffentlichen",remove:"Hilfeartikel zurückziehen"}[value] ?? "Keine Änderung")) +
+    field("Artikeltitel", "articleTitle", ticket.article?.title, "maxlength=120") +
+    '<label class="wide">' + esc(t("Öffentlicher Lösungsweg")) + '<textarea name="articleBody" rows="3" maxlength="3000">' + esc(ticket.article?.body) + '</textarea></label>') +
+    group("Test und Abnahme",
     field("Bitte um einen Funktionstest", "actionRequest", "", "maxlength=500") +
     select("Kanban-Aktion", "deliveryMode", ["","prepare","accept"], "", value =>
       t({prepare:"Übergabe vorbereiten",accept:"Abnahme anfordern"}[value] ?? "Keine Änderung")) +
@@ -513,16 +559,19 @@ function bindAgentTools(ticket) {
   $("shift-brief").onclick = () => {
     pending?.abort();
     const entries = ticket.history.map((entry,index) => ({entry,index})).filter(({entry}) =>
-      entry.values?.note || entry.values?.reason || entry.key === "Testergebnis: {result}").slice(-6).reverse();
+      entry.values?.note || entry.values?.reason || entry.key === "Testergebnis: {result}").reverse();
     draft.hidden = false;
+    const section = (label, selected) => '<p class="rich-label">' + esc(t(label)) + '</p>' +
+      (selected.length ? '<ul>' + selected.map(({entry,index}) =>
+        '<li><button type="button" data-source="' + index + '">' + esc(date(entry.at)) + '</button> ' +
+        esc(entry.values.note ?? entry.values.reason ?? t(entry.values.result)) + '</li>').join("") + '</ul>' : '<p>–</p>');
     draft.innerHTML = renderText("Gemeldete Fakten",ticket.description) +
       renderText("Zuständige Person",ticket.owner || "–") +
       renderText("Nächster Schritt", nextAction(ticket)?.prompt || t(intake[ticket.type]?.next ?? intake[types[0]].next)) +
-      '<p class="rich-label">' + esc(t("Belegte Rückmeldungen und Entscheidungen")) + '</p>' +
-      (entries.length ? '<ul>' + entries.map(({entry,index}) =>
-        '<li><button type="button" data-source="' + index + '">' + esc(date(entry.at)) + '</button> ' +
-        esc(entry.values.note ?? entry.values.reason ?? t(entry.values.result)) + '</li>').join("") + '</ul>' :
-        '<p>' + esc(t("Noch keine Rückmeldungen oder Entscheidungen dokumentiert.")) + '</p>');
+      section("Bereits versucht",entries.filter(({entry}) => entry.values.kind === "Bereits versucht")) +
+      section("Zusagen",entries.filter(({entry}) => entry.values.kind === "Zusage")) +
+      section("Belegte Rückmeldungen und Entscheidungen",entries.filter(({entry}) =>
+        !["Bereits versucht","Zusage"].includes(entry.values.kind)));
     draft.onclick = event => {
       const source = event.target.closest("[data-source]");
       if (source) {
@@ -557,7 +606,7 @@ function openTicket(ticket) {
   if (!isAgent()) return openPortalTicket(ticket);
   const suggested = incidentPriority(ticket);
   show(number(ticket) + " · IT", ticket.title,
-    '<p class="muted">' + esc(ticket.requester) + (ticket.department ? ' · ' + esc(t(ticket.department)) : '') + ' · ' + esc(t(ticket.service || "IT")) + (ticket.urgency ? " · " + t("Gemeldete Dringlichkeit") + ": " + esc(t(ticket.urgency)) : "") + '</p><p id="ticket-description" class="rich-text">' +
+    '<p class="muted">' + esc(ticket.requester) + (ticket.department ? ' · ' + esc(t(ticket.department)) : '') + ' · ' + esc(t(ticket.area || "IT")) + " · " + esc(t(ticket.service || "IT")) + (ticket.urgency ? " · " + t("Gemeldete Dringlichkeit") + ": " + esc(t(ticket.urgency)) : "") + '</p><p id="ticket-description" class="rich-text">' +
     '</p>' + actionDisplay(ticket, false) + translationPanel(ticket) + '<section class="intake-context" aria-label="' + esc(t("Erstbewertung")) + '"><p class="rich-label">' + esc(t("Nächster Schritt")) + '</p><p>' +
     esc(t(ticket.status === statuses[3] ? "Vorgang abgeschlossen." : intake[ticket.type]?.next ?? intake[types[0]].next)) + '</p>' +
     (ticket.rationale ? '<p><strong>' + esc(t("Projektbegründung")) + '</strong> · ' + readingText(ticket.rationale,ticket.rationaleLanguage) + '</p>' : '') +
@@ -567,8 +616,11 @@ function openTicket(ticket) {
     Object.entries(ticket.intakeAnswers ?? {}).map(([name,value]) =>
       '<p><strong>' + esc(t(intakeLabels[name] ?? name)) + '</strong> · ' + esc(name === "needed" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat(getLanguage(), {dateStyle:"medium", timeZone:"UTC"}).format(new Date(value)) : t(value)) + '</p>'
     ).join("") + '</section><form id="edit"><div class="grid">' +
-    select("Anliegenstyp", "type", types, ticket.type) + select("Bearbeitungsstatus", "status", statuses, ticket.status) +
-    select("Priorität", "priority", priorities, ticket.priority) + field("Zuständige Person", "owner", ticket.owner, "maxlength=100") +
+    select("Anliegenstyp", "type", types, ticket.type) +
+    (ticket.type === "Problem" ? '<label class="wide">' + esc(t("Ursachenanalyse")) +
+      '<textarea name="rootCause" rows="3" maxlength="3000">' + esc(ticket.rootCause) + '</textarea></label>' : '') + select("Bearbeitungsstatus", "status", statuses, ticket.status) +
+    select("Priorität", "priority", priorities, ticket.priority) + field("Begründung bei Prioritätswechsel", "priorityReason", "", "maxlength=500") +
+    field("System oder Gerät", "system", ticket.system, "maxlength=120") + field("Zuständige Person", "owner", ticket.owner, "maxlength=100") +
     (suggested ? '<div class="wide intake-context"><p>' +
       esc(t("Prioritätsvorschlag aus Auswirkung und Dringlichkeit: {priority}", {priority:t(suggested)})) +
       '</p><button type="button" id="apply-priority">' + esc(t("Vorschlag übernehmen")) + '</button></div>' : '') +
@@ -580,7 +632,7 @@ function openTicket(ticket) {
     '<label class="wide">' + esc(t("Begründung der Projektentscheidung")) + '<textarea name="rationale" rows="2" maxlength="1200">' +
     esc(ticket.rationale) + '</textarea></label>' +
     '<fieldset class="wide feature-group"><legend>' + esc(t("Kommunikation")) + '</legend><div class="grid">' +
-    select("Art der Rückmeldung", "noteKind", ["Rückfrage", "Antwort", "Interne Notiz"], "Interne Notiz") +
+    select("Art der Rückmeldung", "noteKind", ["Rückfrage", "Antwort", "Interne Notiz", "Bereits versucht", "Zusage"], "Interne Notiz") +
     select("Sprache der Nachricht", "noteLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
     '<label class="wide">' + esc(t("Nachricht")) + '<textarea name="note" rows="2" maxlength="1200"></textarea></label></div></fieldset>' +
     '<fieldset class="wide feature-group"><legend>' + esc(t("Freigabe")) + '</legend><div class="grid">' +
@@ -632,7 +684,7 @@ function openTicket(ticket) {
   };
   $("edit").onsubmit = async (e) => {
     e.preventDefault();
-    const {note, noteKind, noteLanguage, approvalAction, approver, approvalReason, relationKind, relationTarget, actionRequest, outageMode, outageTitle, outageUpdate, deliveryMode, deliveryGoal, deliveryCriteria, deliveryProject, deliveryColumn, ...fields} = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, value.trim()]));
+    const {note, noteKind, noteLanguage, approvalAction, approver, approvalReason, relationKind, relationTarget, actionRequest, outageMode, outageTitle, outageUpdate, deliveryMode, deliveryGoal, deliveryCriteria, deliveryProject, deliveryColumn, priorityReason, articleMode, articleTitle, articleBody, escalationNote, ...fields} = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, value.trim()]));
     if (fields.kanbanUrl && !kanbanLink(fields.kanbanUrl)) {
       $("error").textContent = t("Bitte einen Kartenlink vom lokalen Kanban-Board einfügen.");
       return;
@@ -645,10 +697,20 @@ function openTicket(ticket) {
       $("error").textContent = t("Bitte die Projektentscheidung begründen.");
       return;
     }
-    const labels = {type:"Anliegenstyp", status:"Status", priority:"Priorität", owner:"Zuständigkeit", decision:"Projektentscheidung", reference:"Projektreferenz", rationale:"Projektbegründung", kanbanUrl:"Link zur Kanban-Karte"};
+    if (fields.priority !== ticket.priority && !priorityReason && fields.priority !== suggested) {
+      $("error").textContent = t("Bitte begründe die manuelle Prioritätsänderung.");
+      return;
+    }
+    if (articleMode === "publish" && (fields.status !== statuses[3] || !articleTitle || !articleBody)) {
+      $("error").textContent = t("Zum Veröffentlichen muss das Ticket abgeschlossen sein. Titel und Lösungsweg sind Pflicht.");
+      return;
+    }
+    const labels = {rootCause:"Ursachenanalyse",system:"System oder Gerät",type:"Anliegenstyp", status:"Status", priority:"Priorität", owner:"Zuständigkeit", decision:"Projektentscheidung", reference:"Projektreferenz", rationale:"Projektbegründung", kanbanUrl:"Link zur Kanban-Karte"};
     const history = Object.keys(fields).filter(name => fields[name] !== (ticket[name] ?? "")).map(name =>
       systemEvent("{field} geändert: {before} → {after}", {field:labels[name], before:ticket[name] || "–", after:fields[name] || "–"},
         ["type","status","priority","decision"].includes(name) ? ["field","before","after"] : ["field"]));
+    if (fields.priority !== ticket.priority && priorityReason) history.push(systemEvent("Prioritätsbegründung: {note}", {note:priorityReason, language:getLanguage()}));
+    if (articleMode) history.push(systemEvent(articleMode === "publish" ? "Hilfeartikel veröffentlicht" : "Hilfeartikel zurückgezogen"));
     if (note) history.push(systemEvent("{kind}: {note}", {kind:noteKind,note,author:$("actor").value,language:noteLanguage}, ["kind"]));
     let approval = ticket.approval;
     if (approvalAction) {
@@ -669,11 +731,18 @@ function openTicket(ticket) {
         $("error").textContent = t("Diese Ticketbeziehung ist bereits vorhanden oder ungültig.");
         return;
       }
+      if ((relationKind === "Ursache untersucht in" && (fields.type !== "Störung" || target.type !== "Problem")) ||
+        (relationKind === "Dauerhafte Korrektur" && (fields.type !== "Problem" || target.type !== "Änderungsantrag"))) {
+        $("error").textContent = t("Verknüpfe eine Störung mit einem Problem und ein Problem mit einem Änderungsantrag.");
+        return;
+      }
       relations.push({target:target.number, kind:relationKind});
       history.push(systemEvent("{kind}: {ticket}", {kind:relationKind,ticket:number(target)}, ["kind"]));
     }
     const at = new Date().toISOString();
     const actor = $("actor").value;
+    const escalation = escalationNote ? {note:escalationNote,by:actor,at,language:getLanguage()} : ticket.escalation;
+    if (escalationNote) history.push(systemEvent("Eskalation erfasst"));
     let action = ticket.nextAction, outage = ticket.outage, delivery = ticket.delivery;
     if (deliveryMode) {
       if (deliveryMode === "prepare") {
@@ -717,7 +786,11 @@ function openTicket(ticket) {
       $("dialog").close();
       return;
     }
-    const updated = {...ticket, ...fields, rationaleLanguage: fields.rationale === ticket.rationale ? ticket.rationaleLanguage : getLanguage(), attachments: files, approval, relations, nextAction:action, outage, delivery, history: [...ticket.history, ...history]};
+    const article = articleMode === "publish" ? {title:articleTitle,body:articleBody,service:ticket.service,language:getLanguage()} :
+      articleMode === "remove" ? null : ticket.article;
+    const respondedAt = ticket.respondedAt || (note && ["Rückfrage","Antwort"].includes(noteKind) || actionRequest || deliveryMode === "accept" ? at : null);
+    const resolvedAt = fields.status === statuses[3] ? ticket.resolvedAt || at : null;
+    const updated = {...ticket, ...fields, article, escalation, respondedAt, resolvedAt, rationaleLanguage: fields.rationale === ticket.rationale ? ticket.rationaleLanguage : getLanguage(), attachments: files, approval, relations, nextAction:action, outage, delivery, history: [...ticket.history, ...history]};
     await submit(e.target, tickets.map(t => t.number === ticket.number ? updated : t), t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}));
   };
 }
@@ -740,6 +813,7 @@ $("search").oninput = render;
 $("type").onchange = render;
 $("status").onchange = render;
 $("view").onchange = render;
+$("area-filter").onchange = render;
 $("requester-filter").onchange = render;
 $("workspace").onchange = () => { activeMetric = ""; render(); };
 $("actor").onchange = render;

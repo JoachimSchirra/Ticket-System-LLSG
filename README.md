@@ -45,3 +45,13 @@ Beim Öffnen übernimmt das Ticket die Sprache der Oberfläche. Im Ticket kann m
 - Eine Störung mit einem öffentlichen Titel als Sammelstörung veröffentlichen. Bei einer neuen Störung für denselben Service können sich Anfragende als betroffen melden und veröffentlichte Statusmeldungen in ihrem Ticket sehen.
 - Für einen genehmigten Change einen Kanban-Entwurf vorbereiten, prüfen und kopieren. Die Karte im Board anlegen und den Kartenlink im Ticket speichern. Danach die Abnahme im Ticket anfordern. Das Board sperrt Schreibzugriffe von anderen lokalen Ursprüngen.
 - Im IT-Arbeitsplatz einen Diagnoseentwurf oder eine Schichtübergabe öffnen. Bei einem Screenshot und einem kompatiblen Browser kann die lokale KI einen zusätzlichen Diagnoseentwurf erzeugen. Die Schichtübergabe verlinkt auf die jeweiligen Verlaufseinträge.
+
+## Servicebetrieb im lokalen Prototyp
+
+- Die Ansicht **Meine IT-Aufgaben** bündelt offene Tickets der gewählten IT-Persona, bei denen IT handeln kann. Die Warteschlange berücksichtigt Fristwarnungen.
+- Reaktions- und Lösungsfristen verwenden die Demo-Priorität und laufen ohne Geschäftszeiten oder Feiertage. Die erste öffentliche IT-Rückmeldung setzt den Reaktionszeitpunkt. Eine Eskalationsnotiz wird im Ticket dokumentiert und beeinflusst die Warteschlange. Es werden keine externen Benachrichtigungen ausgelöst.
+- Geschlossene Tickets können einen bewusst formulierten Hilfeartikel veröffentlichen. In der Ticketanlage werden bis zu drei passende Artikel aus demselben Servicebereich angezeigt.
+- Der Problemtyp unterstützt eine Ursachenanalyse und gerichtete Beziehungen von Störung über Problem zu Änderungsantrag.
+- IT-Vorlagen weisen eine Demo-Persona zu. Manuelle Prioritätsänderungen außerhalb des berechneten Vorschlags brauchen eine Begründung. Das optionale System- oder Gerätefeld ist durchsuchbar und zeigt die Anzahl offener Tickets mit derselben Referenz im Bereich.
+- IT, HR, Marketing und Einkauf haben eigene Serviceauswahlen und eine Bereichsfilterung. Diese Datenaufteilung ist eine Demo-Funktion. Der Zugriff wird derzeit nicht serverseitig erzwungen.
+- In der Schichtübergabe werden dokumentierte Versuche und Zusagen getrennt angezeigt. Beide verweisen auf ihre Verlaufseinträge.

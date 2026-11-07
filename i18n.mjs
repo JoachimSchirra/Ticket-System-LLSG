@@ -312,6 +312,55 @@ Bitte zuerst die Umsetzung vorbereiten und die Kanban-Karte verlinken.|Prepare t
 Test angefordert|Test requested|Test richiesto|Prueba solicitada
 Für eine Sammelstörung brauchst du eine Störung mit öffentlichem Titel.|A shared incident requires an incident with a public title.|Un incidente condiviso richiede un incidente con un titolo pubblico.|Una incidencia compartida requiere una incidencia con un título público.
 Sammelstörung aktualisiert|Shared incident updated|Incidente condiviso aggiornato|Incidencia compartida actualizada
+Servicebereich|Service area|Area di servizio|Área de servicio
+Alle Servicebereiche|All service areas|Tutte le aree di servizio|Todas las áreas de servicio
+Marketing|Marketing|Marketing|Marketing
+Einkauf|Procurement|Acquisti|Compras
+Personalbescheinigung|Employment certificate|Certificato di lavoro|Certificado laboral
+Eintritt und Austritt|Onboarding and offboarding|Ingresso e uscita|Incorporación y salida
+Marketingmaterial|Marketing materials|Materiale di marketing|Material de marketing
+Kampagnenunterstützung|Campaign support|Supporto alle campagne|Apoyo a campañas
+Beschaffungsanfrage|Procurement request|Richiesta di acquisto|Solicitud de compra
+Lieferantenanlage|Supplier registration|Registrazione fornitore|Alta de proveedor
+Problem|Problem|Problema|Problema
+Dokumentiere wiederkehrende Störungen und die vermutete Ursache.|Document recurring incidents and their suspected cause.|Documenta gli incidenti ricorrenti e la causa sospetta.|Documenta las incidencias recurrentes y su posible causa.
+Ursache untersuchen und einen dauerhaften Change verknüpfen.|Investigate the cause and link a permanent change.|Indaga la causa e collega una modifica permanente.|Investiga la causa y vincula un cambio permanente.
+Ursachenanalyse|Root cause analysis|Analisi della causa principale|Análisis de causa raíz
+Ursache untersucht in|Cause investigated in|Causa analizzata in|Causa investigada en
+Dauerhafte Korrektur|Permanent fix|Correzione permanente|Corrección permanente
+Verknüpfe eine Störung mit einem Problem und ein Problem mit einem Änderungsantrag.|Link an incident to a problem and a problem to a change request.|Collega un incidente a un problema e il problema a una richiesta di modifica.|Vincula una incidencia con un problema y el problema con una solicitud de cambio.
+System oder Gerät|System or device|Sistema o dispositivo|Sistema o dispositivo
+Servicefristen und Wissen|Service deadlines and knowledge|Scadenze di servizio e conoscenza|Plazos de servicio y conocimiento
+Reaktionsfrist|Response deadline|Scadenza di risposta|Plazo de respuesta
+Lösungsfrist|Resolution deadline|Scadenza di risoluzione|Plazo de resolución
+Erfüllt|Met|Rispettata|Cumplido
+Verspätet erfüllt|Met late|Rispettata in ritardo|Cumplido con retraso
+Überfällig|Overdue|Scaduta|Vencido
+Frist naht|Due soon|In scadenza|Vence pronto
+Im Zeitrahmen|On track|Nei tempi|Dentro de plazo
+Zeitpunkt nicht erfasst|Timestamp not recorded|Data e ora non registrate|Fecha y hora no registradas
+Demo-Fristen laufen rund um die Uhr. Eine Fristwarnung priorisiert das Ticket in der Warteschlange.|Demo deadlines run around the clock. Deadline alerts prioritise tickets in the queue.|Le scadenze demo decorrono senza interruzioni. Gli avvisi danno priorità ai ticket in coda.|Los plazos de demostración corren las 24 horas. Los avisos dan prioridad a los tickets en la cola.
+Passende Hilfeartikel|Relevant help articles|Articoli di assistenza pertinenti|Artículos de ayuda relacionados
+Wissensartikel|Knowledge article|Articolo di conoscenza|Artículo de conocimiento
+Hilfeartikel veröffentlichen|Publish help article|Pubblica articolo di assistenza|Publicar artículo de ayuda
+Hilfeartikel zurückziehen|Withdraw help article|Ritira articolo di assistenza|Retirar artículo de ayuda
+Artikeltitel|Article title|Titolo dell’articolo|Título del artículo
+Öffentlicher Lösungsweg|Public solution steps|Procedura di risoluzione pubblica|Pasos públicos de resolución
+Zum Veröffentlichen muss das Ticket abgeschlossen sein. Titel und Lösungsweg sind Pflicht.|Close the ticket and enter a title and solution before publishing.|Chiudi il ticket e inserisci titolo e soluzione prima di pubblicare.|Cierra el ticket e indica el título y la solución antes de publicar.
+Hilfeartikel veröffentlicht|Help article published|Articolo di assistenza pubblicato|Artículo de ayuda publicado
+Hilfeartikel zurückgezogen|Help article withdrawn|Articolo di assistenza ritirato|Artículo de ayuda retirado
+Begründung bei Prioritätswechsel|Reason for priority change|Motivo del cambio di priorità|Motivo del cambio de prioridad
+Bitte begründe die manuelle Prioritätsänderung.|Enter a reason for the manual priority change.|Indica il motivo del cambio manuale di priorità.|Indica el motivo del cambio manual de prioridad.
+Prioritätsbegründung: {note}|Priority rationale: {note}|Motivo della priorità: {note}|Motivo de prioridad: {note}
+Eskalationshinweis|Escalation note|Nota di escalation|Nota de escalamiento
+Eskalation erfasst|Escalation recorded|Escalation registrata|Escalamiento registrado
+Eskalation|Escalation|Escalation|Escalamiento
+Ticket nach System|Tickets by system|Ticket per sistema|Tickets por sistema
+{count} offene Tickets für {system}|{count} open tickets for {system}|{count} ticket aperti per {system}|{count} tickets abiertos para {system}
+Meine IT-Aufgaben|My IT tasks|Le mie attività IT|Mis tareas de TI
+Bereits versucht|Already tried|Tentativi effettuati|Ya intentado
+Zusage|Commitment|Impegno|Compromiso
+Zusagen|Commitments|Impegni|Compromisos
 `;
 const dictionary = new Map(rows.trim().split("\n").map(row => {
   const [key, en, it, es] = row.split("|");
@@ -350,6 +399,9 @@ export function localize(root) {
     for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, t(value));
   }
 }
+
+
+
 
 
 

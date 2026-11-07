@@ -134,3 +134,5 @@ body[data-workspace="it"] .intro {
 #delivery-text { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
 .action-card { border-left-width:4px; }
 .row .action-indicator { color:var(--accent); font-weight:700; }
+
+label[hidden] { display:none; }
