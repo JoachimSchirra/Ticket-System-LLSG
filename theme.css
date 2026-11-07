@@ -136,3 +136,10 @@ body[data-workspace="it"] .intro {
 .row .action-indicator { color:var(--accent); font-weight:700; }
 
 label[hidden] { display:none; }
+.portal-editor { padding: 12px 16px; margin: 12px 0 20px; border: 1px solid var(--line); border-radius: 8px; background: #f5f7fa; }
+.portal-editor summary { color: var(--navy); font-weight: 700; cursor: pointer; }
+.portal-editor form { margin-top: 14px; }
+.ticket-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 8px 16px; padding: 10px 14px; margin: 0 0 14px; border-radius: 8px; background: #f5f7fa; }
+.ticket-facts dt { font-weight: 650; }
+.ticket-facts dd { margin: 0; }
+

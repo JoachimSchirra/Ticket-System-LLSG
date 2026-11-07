@@ -14,7 +14,7 @@ export function evidenceForm() {
     '<canvas id="evidence-canvas" aria-label="' + escape(t("Screenshot-Vorschau")) + '"></canvas></div><p id="evidence-status" role="status"></p></fieldset>';
 }
 
-export function bindEvidence(dialog, addFile) {
+export function bindEvidence(dialog, addFile, isActive = () => true) {
   const $ = id => dialog.querySelector("#" + id);
   const picker = $("evidence-file"), canvas = $("evidence-canvas"), status = $("evidence-status");
   const ctx = canvas.getContext("2d");
@@ -66,6 +66,7 @@ export function bindEvidence(dialog, addFile) {
       y:Math.max(0,Math.min(canvas.height,(event.clientY-rect.top)*canvas.height/rect.height))};
   }
   const paste = event => {
+    if (!isActive()) return;
     const file = [...(event.clipboardData?.files ?? [])].find(file => file.type.startsWith("image/"));
     if (file) { event.preventDefault(); void load(file); }
   };

@@ -399,6 +399,14 @@ Nenne Werk, Bestellposition und Fehlermeldung beim Wareneingang.|Provide the pla
 Nenne Werk, Prüflos und den Schritt, an dem die Qualitätsprüfung stockt.|Provide the plant, inspection lot and step where inspection stops.|Indica divisione, lotto di controllo e fase in cui il controllo si blocca.|Indica el centro, el lote y el paso donde se bloquea la inspección.
 Beschreibe den heutigen Freigabeweg, die gewünschte Regel und ein Abnahmebeispiel.|Describe the current approval flow, desired rule and an acceptance example.|Descrivi il flusso attuale, la regola desiderata e un esempio di accettazione.|Describe el flujo actual, la regla deseada y un ejemplo de aceptación.
 Nenne Schnittstelle oder Job, Zeitpunkt und die Auswirkung auf den Geschäftsprozess.|Provide the interface or job, time and business impact.|Indica interfaccia o job, orario e impatto sul processo.|Indica la interfaz o tarea, la hora y el impacto en el proceso.
+Ticket bearbeiten oder ergänzen|Edit or add to this ticket|Modifica o integra il ticket|Editar o ampliar el ticket
+Änderungen speichern|Save changes|Salva modifiche|Guardar cambios
+Zusatzinformationen und Auswirkungen|Additional information and impact|Informazioni aggiuntive e impatto|Información adicional e impacto
+Geschäftliche Auswirkungen|Business impact|Impatto operativo|Impacto en el negocio
+Gewünschtes Ergebnis|Desired outcome|Risultato desiderato|Resultado deseado
+Aktueller Ausweichweg|Current workaround|Soluzione temporanea attuale|Solución alternativa actual
+Bitte Betreff und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.|Enter a subject and a description of up to 3,000 characters.|Inserisci oggetto e descrizione di massimo 3.000 caratteri.|Introduce un asunto y una descripción de hasta 3.000 caracteres.
+Anliegen aktualisiert: {fields}|Request updated: {fields}|Richiesta aggiornata: {fields}|Solicitud actualizada: {fields}
 `;
 const dictionary = new Map(rows.trim().split("\n").map(row => {
   const [key, en, it, es] = row.split("|");
@@ -439,6 +447,7 @@ export function localize(root) {
     for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, t(value));
   }
 }
+
 
 
 

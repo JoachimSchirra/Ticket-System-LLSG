@@ -56,7 +56,7 @@ export function attachmentsForm() {
     '<p id="attachment-status" role="status"></p><ul id="attachments" class="attachments"></ul></section>';
 }
 
-export function bindAttachments(initial = []) {
+export function bindAttachments(initial = [], {keepExisting = false} = {}) {
   let files = [...initial];
   const picker = id("attachment-picker"), zone = id("dropzone"), list = id("attachments");
   localize(zone);
@@ -75,7 +75,8 @@ export function bindAttachments(initial = []) {
       remove.textContent = t("Entfernen");
       remove.setAttribute("aria-label", t("Entfernen") + " " + file.name);
       remove.onclick = () => { files = files.filter(item => item !== file); render(); };
-      item.append(file.name, download, remove);
+      item.append(file.name, download);
+      if (!keepExisting || !initial.includes(file)) item.append(remove);
       list.append(item);
     }
   }
