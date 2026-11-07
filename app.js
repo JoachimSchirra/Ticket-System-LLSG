@@ -656,10 +656,15 @@ function openPortalTicket(ticket) {
     '<li><button type="button" data-download="' + index + '">' + uiText("Herunterladen") + esc(" · " + file.name) + '</button></li>').join("");
   show(number(ticket), ticket.title,
     '<p class="pill">' + uiText(ticket.status) + '</p>' + (ticket.system ? '<p>' + uiText("System oder Gerät") + esc(": " + ticket.system) + '</p>' : '') + '<p id="ticket-description" class="rich-text"></p>' +
-    '<dl class="ticket-facts"><div><dt>' + uiText("Betroffener Service") + '</dt><dd>' + uiText(ticket.service || "Noch nicht bekannt") +
-    '</dd></div><div><dt>' + uiText("Anliegenstyp") + '</dt><dd>' + uiText(ticket.type) +
-    '</dd></div><div><dt>' + uiText("Gemeldete Dringlichkeit") + '</dt><dd>' + uiText(ticket.urgency || "Noch nicht bekannt") +
-    '</dd></div><div><dt>' + uiText("Gemeldete Kritikalität") + '</dt><dd>' + uiText(ticket.reportedCriticality || "Noch nicht bewertet") + '</dd></div></dl>' + businessContextDisplay(ticket) + portalEditMarkup(ticket) + actionDisplay(ticket, true) + outageUpdates(ticket) + translationPanel(ticket) + (attachments ? '<h3>' + uiText("Anhänge") + '</h3><ul id="portal-attachments">' + attachments + '</ul>' : '') +
+    '<dl class="ticket-facts" id="editable-ticket-facts">' + [
+      ["service", "Betroffener Service", ticket.service || "Noch nicht bekannt"],
+      ["type", "Anliegenstyp", ticket.type],
+      ["urgency", "Gemeldete Dringlichkeit", ticket.urgency || "Noch nicht bekannt"],
+      ["reportedCriticality", "Gemeldete Kritikalität", ticket.reportedCriticality || "Noch nicht bewertet"]
+    ].map(([name, label, value]) => '<div><dt id="fact-label-' + name + '">' + uiText(label) + '</dt><dd>' +
+      '<button type="button" class="fact-edit" data-edit-field="' + name + '" aria-labelledby="fact-label-' + name +
+      ' fact-value-' + name + ' fact-action-' + name + '"><span id="fact-value-' + name + '">' + uiText(value) +
+      '</span><span class="fact-edit-action" id="fact-action-' + name + '">' + uiText("Ändern") + '</span></button></dd></div>').join("") + '</dl>' + businessContextDisplay(ticket) + portalEditMarkup(ticket) + actionDisplay(ticket, true) + outageUpdates(ticket) + translationPanel(ticket) + (attachments ? '<h3>' + uiText("Anhänge") + '</h3><ul id="portal-attachments">' + attachments + '</ul>' : '') +
     '<section class="history"><h3>' + uiText("Kommunikation") + '</h3><ul>' +
     conversation.map(entry => '<li><small class="muted">' + esc(date(entry.at)) + '</small> · ' +
       uiText(entry.values.kind) + esc(" · " + (entry.values.author ? entry.values.author + ": " : "")) + readingText(entry.values.note,entry.values.language) + '</li>').join("") +
@@ -674,11 +679,17 @@ function openPortalTicket(ticket) {
   editButton.dataset.uiKey = "Bearbeiten und Anhänge";
   editButton.textContent = t("Bearbeiten und Anhänge");
   editButton.hidden = false;
-  editButton.onclick = () => {
+  const openEditor = name => {
     const panel = $("portal-editor");
     panel.open = true;
-    panel.scrollIntoView({block:"start"});
-    $("portal-edit").elements.namedItem("title").focus({preventScroll:true});
+    const control = $("portal-edit").elements.namedItem(name);
+    control.focus({preventScroll:true});
+    control.scrollIntoView({block:"center"});
+  };
+  editButton.onclick = () => openEditor("title");
+  $("editable-ticket-facts").onclick = event => {
+    const button = event.target.closest("[data-edit-field]");
+    if (button) openEditor(button.dataset.editField);
   };
   if (nextAction(ticket)) {
     const works = $("action-works"), fails = $("action-fails"), error = $("action-error");

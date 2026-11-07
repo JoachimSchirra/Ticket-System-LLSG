@@ -10,6 +10,11 @@ const types = {html:"text/html", css:"text/css", js:"text/javascript", mjs:"text
 
 const server = createServer(async (request, response) => {
   const path = request.url?.split("?")[0].slice(1) || "index.html";
+  if (request.method === "GET" && path === "api/translation-provider") {
+    response.writeHead(200, {"Content-Type":"application/json; charset=utf-8", "Cache-Control":"no-store"});
+    response.end(JSON.stringify({provider:process.env.LLSG_DEEPL_API_KEY?.trim() ? "deepl" : "browser"}));
+    return;
+  }
   if (path === "api/translate/deepl") return handleDeepL(request,response,origin);
   if (!["GET", "HEAD"].includes(request.method) || !files.has(path)) {
     response.writeHead(404).end();

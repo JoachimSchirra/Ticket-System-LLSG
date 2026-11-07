@@ -421,6 +421,10 @@ DeepL konnte den Text nicht übersetzen.|DeepL could not translate the text.|Dee
 Für diese Person gibt es noch keine eigenen Anliegen.|This person has no requests of their own yet.|Questa persona non ha ancora richieste proprie.|Esta persona aún no tiene solicitudes propias.
 Zum IT-Arbeitsplatz und alle Tickets anzeigen|Open IT workspace and show all tickets|Apri l’area IT e mostra tutti i ticket|Abrir el área de TI y ver todos los tickets
 Nicht zugewiesen|Unassigned|Non assegnato|Sin asignar
+Ändern|Edit|Modifica|Cambiar
+Erneut versuchen|Try again|Riprova|Reintentar
+Bitte wähle die Originalsprache für die Übersetzung.|Select the original language to translate this ticket.|Seleziona la lingua originale per tradurre il ticket.|Selecciona el idioma original para traducir este ticket.
+Alle Ticketinhalte sind bereits auf {language} verfügbar.|All ticket content is already available in {language}.|Tutti i contenuti del ticket sono già disponibili in {language}.|Todo el contenido del ticket ya está disponible en {language}.
 `;
 const dictionary = new Map(rows.trim().split("\n").map(row => {
   const [key, en, it, es] = row.split("|");

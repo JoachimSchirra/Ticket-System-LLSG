@@ -142,6 +142,10 @@ label[hidden] { display:none; }
 .ticket-facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(145px, 1fr)); gap: 8px 16px; padding: 10px 14px; margin: 0 0 14px; border-radius: 8px; background: #f5f7fa; }
 .ticket-facts dt { font-weight: 650; }
 .ticket-facts dd { margin: 0; }
+.fact-edit { display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 10px; width:100%; padding:4px 0; border:0; border-radius:4px; background:transparent; text-align:left; font:inherit; }
+.fact-edit-action { color:var(--navy); text-decoration:underline; font-size:.85rem; }
+.fact-edit:hover { background:#e8edf3; }
+.fact-edit:focus-visible { outline:2px solid var(--accent); outline-offset:3px; }
 
 
 .dialog-head { position:sticky; top:0; z-index:2; }
