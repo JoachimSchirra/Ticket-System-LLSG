@@ -1,4 +1,9 @@
 const rows = `
+Rechnungsbuchung im ERP schlägt fehl|Invoice posting fails in ERP|Registrazione della fattura non riuscita nell’ERP|Error al contabilizar una factura en el ERP
+ERP-Buchhaltungsrolle beantragen|Request an ERP accounting role|Richiedere un ruolo di contabilità nell’ERP|Solicitar un rol de contabilidad en el ERP
+Zweite ERP-Freigabestufe ergänzen|Add a second ERP approval step|Aggiungere un secondo livello di approvazione nell’ERP|Añadir un segundo nivel de aprobación en el ERP
+Lieferantenportal einführen|Launch a supplier portal|Avviare un portale per fornitori|Puesta en marcha de un portal para proveedores
+
 Noch nicht eingeordnet|Unclassified|Da classificare|Sin clasificar
 Störung|Incident|Incidente|Incidencia
 Serviceanfrage|Service request|Richiesta di servizio|Solicitud de servicio

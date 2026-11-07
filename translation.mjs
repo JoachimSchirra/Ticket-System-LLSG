@@ -5,7 +5,57 @@ const escape = value => String(value ?? "").replace(/[&<>"']/g, c =>
 const hasLanguage = code => Object.hasOwn(languages, code);
 const cached = new Map();
 const cacheKey = (text, source, target) => JSON.stringify([text, source, target]);
-export const translatedTitle = ticket => cached.get(cacheKey(ticket.title,ticket.sourceLanguage,getLanguage())) ?? ticket.title;
+const pendingTitles = new Map();
+function titleInLanguage(ticket, target) {
+  return cached.get(cacheKey(ticket.title,ticket.sourceLanguage,target)) ??
+    (ticket.sourceLanguage === "de" && target === getLanguage() ? t(ticket.title) : ticket.title);
+}
+export const translatedTitle = ticket => titleInLanguage(ticket,getLanguage());
+
+export async function translateTicketTitles(tickets, target, onTitle) {
+  const api = globalThis.Translator;
+  if (!api || !hasLanguage(target)) return;
+  const groups = new Map();
+  const updates = [];
+  for (const ticket of tickets) {
+    const source = ticket.sourceLanguage;
+    if (!hasLanguage(source) || source === target || !ticket.title.trim()) continue;
+    const key = cacheKey(ticket.title,source,target);
+    if (cached.has(key) || titleInLanguage(ticket,target) !== ticket.title) continue;
+    if (!pendingTitles.has(key)) {
+      let group = groups.get(source);
+      if (!group) { group = new Map(); groups.set(source,group); }
+      let resolve;
+      pendingTitles.set(key,new Promise(done => { resolve = done; }));
+      group.set(key,{text:ticket.title,resolve});
+    }
+    updates.push(pendingTitles.get(key).then(value => {
+      if (value) onTitle(ticket,value);
+    }));
+  }
+  await Promise.allSettled([...groups].map(async ([source,group]) => {
+    const pair = {sourceLanguage:source,targetLanguage:target};
+    let translator;
+    const signal = AbortSignal.timeout(90000);
+    try {
+      if (await api.availability(pair) === "unavailable") return;
+      translator = await api.create({...pair,signal});
+      for (const [key,{text,resolve}] of group) {
+        const value = await translator.translate(text,{signal});
+        if (cached.size >= 500) cached.delete(cached.keys().next().value);
+        cached.set(key,value);
+        resolve(value);
+      }
+    } finally {
+      for (const [key,{resolve}] of group) {
+        resolve(undefined);
+        pendingTitles.delete(key);
+      }
+      translator?.destroy();
+    }
+  }));
+  await Promise.all(updates);
+}
 
 export function readingText(value, source = "") {
   return '<span data-reading-text data-reading-language="' + escape(hasLanguage(source) ? source : "") + '">' + escape(value) + '</span>';

@@ -1,7 +1,7 @@
 import { serviceDeadlines, deadlineRank, matchingArticles } from "./operations.mjs";
 import { evidenceForm, bindEvidence, activeOutages, nextAction, answerAction, handoffText, draftDiagnosis } from "./highlights.mjs";
 import { getLanguage, setLanguage, languages, localize, t, t as translate } from "./i18n.mjs";
-import { translationPanel, bindTranslation, readingText, translatedTitle } from "./translation.mjs";
+import { translationPanel, bindTranslation, readingText, translatedTitle, translateTicketTitles } from "./translation.mjs";
 import { createRichEditor } from "./rich-editor.mjs";
 import { appendRichText } from "./rich-text.mjs";
 import { attachmentsForm, bindAttachments, downloadAttachment, readTickets, writeTickets } from "./storage.mjs";
@@ -211,7 +211,7 @@ function render() {
   const filtered = selected.filter(t =>
     (!$("type").selectedIndex || t.type === $("type").value) &&
     (!$("status").selectedIndex || t.status === $("status").value) &&
-    [number(t), t.title, t.description, t.owner, t.service, t.requester, t.department, t.system, t.sapProcess, t.sapStep, t.sapComponent, t.sapContext, t.sapApp, t.sapError, translate(t.sapStep), translate(t.sapProcess), translate(t.service), translate(t.department), translate(t.type), translate(t.status), translate(t.priority)].join(" ").toLocaleLowerCase(getLanguage()).includes(query)
+    [number(t), t.title, translatedTitle(t), t.description, t.owner, t.service, t.requester, t.department, t.system, t.sapProcess, t.sapStep, t.sapComponent, t.sapContext, t.sapApp, t.sapError, translate(t.sapStep), translate(t.sapProcess), translate(t.service), translate(t.department), translate(t.type), translate(t.status), translate(t.priority)].join(" ").toLocaleLowerCase(getLanguage()).includes(query)
   );
   $("metric-filter").hidden = !activeMetric;
   $("clear-metric").textContent = t("Kachelfilter entfernen");
@@ -221,7 +221,7 @@ function render() {
   const ordered = filtered.slice().reverse();
   if (agent && [views[1],views[3]].includes(view.value)) ordered.sort((a,b) => deadlineRank(a) - deadlineRank(b) || queueRank(a) - queueRank(b) || priorities.indexOf(b.priority) - priorities.indexOf(a.priority));
   $("rows").innerHTML = ordered.map(t =>
-    '<button class="row" data-number="' + t.number + '"><span><small>' + number(t) + ' · ' + esc(translate(t.service || "IT")) + '</small>' + esc(translatedTitle(t)) +
+    '<button class="row" data-number="' + t.number + '"><span><small>' + number(t) + ' · ' + esc(translate(t.service || "IT")) + '</small>' + '<span class="ticket-row-title">' + esc(translatedTitle(t)) + '</span>' +
     (agent && deadlineRank(t) < 2 ? '<small class="action-indicator">' + esc(translate(deadlineRank(t) === 0 ? "Überfällig" : "Frist naht")) + '</small>' : '') +
     (nextAction(t) ? '<small class="action-indicator">' + esc(translate("Rückmeldung erbeten")) + '</small>' :
       t.nextAction?.state === "fails" ? '<small class="action-indicator">' + esc(translate("Fehler besteht noch")) + '</small>' :
@@ -232,6 +232,15 @@ function render() {
     '<div class="empty"><p class="muted">' + esc(t("Für diese Person gibt es noch keine eigenen Anliegen.")) + '</p>' +
     '<div class="kanban-actions"><button type="button" data-open-it>' + esc(t("Zum IT-Arbeitsplatz und alle Tickets anzeigen")) + '</button></div></div>' :
     '<p class="muted empty">' + esc(t("Keine Tickets für diese Auswahl.")) + '</p>');
+  const targetLanguage = getLanguage();
+  void translateTicketTitles(ordered,targetLanguage,(ticket,value) => {
+    if (getLanguage() !== targetLanguage || !tickets.includes(ticket)) return;
+    const title = $("rows").querySelector('[data-number="' + ticket.number + '"] .ticket-row-title');
+    if (title) {
+      title.textContent = value;
+      title.lang = targetLanguage;
+    }
+  });
 }
 
 function show(kicker, title, body) {
