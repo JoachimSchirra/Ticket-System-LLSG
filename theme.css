@@ -148,3 +148,11 @@ label[hidden] { display:none; }
 .dialog-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; }
 .dialog-actions button[hidden] { display:none; }
 .portal-editor { scroll-margin-top: 110px; }
+
+#dialog-reading-language:empty { display: none; }
+#dialog-reading-language label { font-size: .83rem; }
+.dialog-head > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 620px) {
+  .dialog-head { flex-wrap: wrap; }
+  .dialog-actions { justify-content: flex-start; }
+}

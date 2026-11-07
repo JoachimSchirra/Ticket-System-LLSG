@@ -87,6 +87,7 @@ export function bindTranslation(ticket) {
   const button = $("translate"), sourcePicker = $("translation-source"), targetPicker = $("translation-target");
   const status = $("translation-status"), result = $("translation-result"), deepLButton = $("translate-deepl");
   const content = $("content");
+  $("dialog-reading-language").replaceChildren(targetPicker.closest("label"));
   const source = () => sourcePicker?.value ?? ticket.sourceLanguage;
   const originals = [
     {node:title,text:ticket.title}, {node:description,text:ticket.description},
@@ -111,7 +112,6 @@ export function bindTranslation(ticket) {
   function setBusy(busy) {
     button.disabled = busy || !globalThis.Translator || !hasLanguage(source());
     if (deepLButton) deepLButton.disabled = busy || !hasLanguage(source());
-    targetPicker.disabled = busy;
     if (sourcePicker) sourcePicker.disabled = busy;
   }
   function clearReading() {

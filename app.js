@@ -244,6 +244,7 @@ function render() {
 }
 
 function show(kicker, title, body) {
+  $("dialog-reading-language").replaceChildren();
   $("edit-ticket").hidden = true;
   $("edit-ticket").onclick = null;
   $("dialog-kicker").textContent = kicker;
@@ -645,7 +646,7 @@ function openPortalTicket(ticket) {
     conversation.map(entry => '<li><small class="muted">' + esc(date(entry.at)) + '</small> · ' +
       esc(t(entry.values.kind) + " · " + (entry.values.author ? entry.values.author + ": " : "")) + readingText(entry.values.note,entry.values.language) + '</li>').join("") +
     '</ul></section><form id="edit">' +
-    select("Sprache der Nachricht", "noteLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
+    select("Sprache deiner neuen Nachricht", "noteLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
     '<label>' + esc(t("Antwort")) +
     '<textarea name="note" rows="3" maxlength="1200" required></textarea></label>' + formEnd("Antwort senden"));
   appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
@@ -851,7 +852,7 @@ function openTicket(ticket) {
     esc(ticket.rationale) + '</textarea></label>' +
     '<fieldset class="wide feature-group"><legend>' + esc(t("Kommunikation")) + '</legend><div class="grid">' +
     select("Art der Rückmeldung", "noteKind", ["Rückfrage", "Antwort", "Interne Notiz", "Bereits versucht", "Zusage"], "Interne Notiz") +
-    select("Sprache der Nachricht", "noteLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
+    select("Sprache deiner neuen Nachricht", "noteLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
     '<label class="wide">' + esc(t("Nachricht")) + '<textarea name="note" rows="2" maxlength="1200"></textarea></label></div></fieldset>' +
     '<fieldset class="wide feature-group"><legend>' + esc(t("Freigabe")) + '</legend><div class="grid">' +
     '<p class="wide">' + esc(t(ticket.approval?.status || "Keine Freigabe erfasst")) +

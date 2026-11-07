@@ -251,7 +251,7 @@ Original anzeigen|Show original|Mostra originale|Mostrar original
 Übersetzung anzeigen|Show translation|Mostra traduzione|Mostrar traducción
 Sprachmodell wird geladen: {percent} %|Downloading language model: {percent}%|Download del modello linguistico: {percent}%|Descargando modelo de idioma: {percent} %
 Antwort senden|Send reply|Invia risposta|Enviar respuesta
-Sprache der Nachricht|Message language|Lingua del messaggio|Idioma del mensaje
+Sprache deiner neuen Nachricht|Language of your new message|Lingua del nuovo messaggio|Idioma de tu nuevo mensaje
 Screenshot markieren|Annotate screenshot|Annota schermata|Marcar captura
 Screenshot einfügen oder auswählen. Markierungen und Schwärzungen werden in die Vorschau eingebrannt.|Paste or select a screenshot. Annotations and redactions are flattened into the preview.|Incolla o seleziona una schermata. Annotazioni e oscuramenti vengono incorporati nell’anteprima.|Pega o selecciona una captura. Las marcas y los tachados se incorporan a la vista previa.
 Screenshot auswählen|Choose screenshot|Seleziona schermata|Seleccionar captura
