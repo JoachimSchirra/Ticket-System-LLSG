@@ -55,3 +55,16 @@ Beim Öffnen übernimmt das Ticket die Sprache der Oberfläche. Im Ticket kann m
 - IT-Vorlagen weisen eine Demo-Persona zu. Manuelle Prioritätsänderungen außerhalb des berechneten Vorschlags brauchen eine Begründung. Das optionale System- oder Gerätefeld ist durchsuchbar und zeigt die Anzahl offener Tickets mit derselben Referenz im Bereich.
 - IT, HR, Marketing und Einkauf haben eigene Serviceauswahlen und eine Bereichsfilterung. Diese Datenaufteilung ist eine Demo-Funktion. Der Zugriff wird derzeit nicht serverseitig erzwungen.
 - In der Schichtübergabe werden dokumentierte Versuche und Zusagen getrennt angezeigt. Beide verweisen auf ihre Verlaufseinträge.
+
+### DeepL optional verwenden
+
+Der Browser übersetzt standardmäßig lokal. **Mit DeepL übersetzen** sendet auf Klick die zu übersetzenden Texte an DeepL. Bei Texten in der Originalsprache des Tickets erhält DeepL auch die Ticketbeschreibung als Kontext. Dateien werden nicht übertragen.
+
+Die Startdatei aus einer PowerShell-Konsole im Projektordner ausführen. Den DeepL API-Schlüssel nur lokal eingeben.
+
+```powershell
+$env:LLSG_DEEPL_API_KEY = Read-Host "DeepL API-Schlüssel" -MaskInput
+try { .\TICKETSYSTEM-STARTEN.cmd } finally { Remove-Item Env:LLSG_DEEPL_API_KEY }
+```
+
+Die Startdatei übernimmt den Schlüssel aus der Umgebung dieser Konsole. Ohne Schlüssel bleibt die lokale Browserübersetzung verfügbar.

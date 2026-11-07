@@ -407,6 +407,12 @@ Gewünschtes Ergebnis|Desired outcome|Risultato desiderato|Resultado deseado
 Aktueller Ausweichweg|Current workaround|Soluzione temporanea attuale|Solución alternativa actual
 Bitte Betreff und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.|Enter a subject and a description of up to 3,000 characters.|Inserisci oggetto e descrizione di massimo 3.000 caratteri.|Introduce un asunto y una descripción de hasta 3.000 caracteres.
 Anliegen aktualisiert: {fields}|Request updated: {fields}|Richiesta aggiornata: {fields}|Solicitud actualizada: {fields}
+Gemeldete Kritikalität|Reported criticality|Criticità segnalata|Criticidad indicada
+Noch nicht bewertet|Not rated yet|Non ancora valutata|Aún sin evaluar
+Bearbeiten und Anhänge|Edit and attach files|Modifica e allega file|Editar y adjuntar archivos
+Mit DeepL übersetzen|Translate with DeepL|Traduci con DeepL|Traducir con DeepL
+DeepL ist auf diesem Rechner noch nicht eingerichtet.|DeepL has not been configured on this computer.|DeepL non è ancora configurato su questo computer.|DeepL aún no está configurado en este equipo.
+DeepL konnte den Text nicht übersetzen.|DeepL could not translate the text.|DeepL non ha potuto tradurre il testo.|DeepL no pudo traducir el texto.
 `;
 const dictionary = new Map(rows.trim().split("\n").map(row => {
   const [key, en, it, es] = row.split("|");
@@ -447,6 +453,7 @@ export function localize(root) {
     for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, t(value));
   }
 }
+
 
 
 

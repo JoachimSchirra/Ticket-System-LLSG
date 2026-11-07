@@ -232,6 +232,8 @@ function render() {
 }
 
 function show(kicker, title, body) {
+  $("edit-ticket").hidden = true;
+  $("edit-ticket").onclick = null;
   $("dialog-kicker").textContent = kicker;
   $("dialog-title").textContent = title;
   $("content").innerHTML = body;
@@ -278,6 +280,7 @@ function descriptionEditorMarkup() {
 const businessContextLabels = {
   businessImpact:"Geschäftliche Auswirkungen",
   businessScope:"Wer ist betroffen?",
+  reportedCriticality:"Gemeldete Kritikalität",
   desiredOutcome:"Gewünschtes Ergebnis",
   businessDeadline:"Benötigt bis",
   currentWorkaround:"Aktueller Ausweichweg"
@@ -288,6 +291,7 @@ function businessContextFields(ticket = {}) {
   const textarea = name => '<label>' + esc(t(businessContextLabels[name])) + '<textarea name="' + name +
     '" rows="2" maxlength="1200">' + esc(ticket[name]) + '</textarea></label>';
   return '<fieldset class="wide feature-group"><legend>' + esc(t("Zusatzinformationen und Auswirkungen")) + '</legend><div class="grid">' +
+    select("Gemeldete Kritikalität", "reportedCriticality", ["", ...priorities], ticket.reportedCriticality ?? "", value => t(value || "Noch nicht bewertet")) +
     select("Wer ist betroffen?", "businessScope", ["", "Nur ich", "Ein Team", "Mehrere Teams", "Ganze Organisation"],
       ticket.businessScope || ticket.intakeAnswers?.impact || "", value => t(value || "Noch nicht bekannt")) +
     textarea("businessImpact") + textarea("desiredOutcome") +
@@ -296,7 +300,7 @@ function businessContextFields(ticket = {}) {
 }
 
 function businessContextDisplay(ticket) {
-  const rows = Object.entries(businessContextLabels).filter(([name]) => ticket[name]).map(([name, label]) =>
+  const rows = Object.entries(businessContextLabels).filter(([name]) => name !== "reportedCriticality" && ticket[name]).map(([name, label]) =>
     '<div><dt>' + esc(t(label)) + '</dt><dd class="rich-text">' +
     (name === "businessDeadline" || name === "businessScope" ? esc(t(ticket[name])) : readingText(ticket[name], ticket.businessContextLanguages?.[name])) + '</dd></div>');
   return rows.length ? '<dl class="ticket-facts">' + rows.join("") + '</dl>' : "";
@@ -451,14 +455,14 @@ function openNew() {
       $("error").textContent = t("Bitte Betreff, anfragende Person und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.");
       return;
     }
-    const {title, description, type, service, urgency, department, requester, requesterName, sourceLanguage, catalogItem, outageTarget, system, area, sapProcess, sapStep, sapContext, sapApp, sapError, businessImpact, businessScope, desiredOutcome, businessDeadline, currentWorkaround, ...answers} = fields;
+    const {title, description, type, service, urgency, department, requester, requesterName, sourceLanguage, catalogItem, outageTarget, system, area, sapProcess, sapStep, sapContext, sapApp, sapError, businessImpact, businessScope, reportedCriticality, desiredOutcome, businessDeadline, currentWorkaround, ...answers} = fields;
     const incident = type === types[1] && activeOutages(tickets.filter(item => (item.area || "IT") === area), service).find(item => String(item.number) === outageTarget);
     if (incident && tickets.some(item => item.relatedOutage === incident.number && item.requester === requesterValue)) {
       $("error").textContent = t("Du hast dich für diese Störung bereits als betroffen gemeldet.");
       return;
     }
     const intakeAnswers = Object.fromEntries(Object.entries(answers).filter(([,value]) => value));
-    const ticket = {title, requester: requesterValue, department: person?.department ?? (department === "Alle Abteilungen" ? "" : department), description, type, service, urgency, sourceLanguage, catalogItem, system, area, sapProcess, sapStep, sapContext, sapApp, sapError, businessImpact, businessScope, desiredOutcome, businessDeadline, currentWorkaround, intakeAnswers, createdAt:new Date().toISOString(), relatedOutage: incident ? incident.number : null, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
+    const ticket = {title, requester: requesterValue, department: person?.department ?? (department === "Alle Abteilungen" ? "" : department), description, type, service, urgency, sourceLanguage, catalogItem, system, area, sapProcess, sapStep, sapContext, sapApp, sapError, businessImpact, businessScope, reportedCriticality, desiredOutcome, businessDeadline, currentWorkaround, intakeAnswers, createdAt:new Date().toISOString(), relatedOutage: incident ? incident.number : null, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
       descriptionFormat: editor.getFormat(), attachments: attachments(),
       status: statuses[0], priority: priorities[1], decision: decisions[0],
       reference: "", rationale: "", owner:catalog[catalogItem]?.owner ?? "", history: [systemEvent("Ticket angelegt")]};
@@ -534,7 +538,12 @@ function portalEditMarkup(ticket) {
     select("Sprache des Originals", "sourceLanguage", ["", ...Object.keys(languages)], ticket.sourceLanguage ?? "",
       code => languages[code] ?? t("Originalsprache unbekannt")) +
     select("Dringlichkeit (Einschätzung)", "urgency", ["", ...reportedUrgencies], ticket.urgency ?? "", value => t(value || "Noch nicht bekannt")) +
+    select("Servicebereich", "area", areas, ticket.area || "IT") +
+    select("Betroffener Service", "service", [...new Set(["Noch nicht bekannt", ...(areaServices[ticket.area || "IT"] ?? []), ticket.service].filter(Boolean))], ticket.service || "Noch nicht bekannt") +
+    select("Anliegenstyp", "type", [...new Set([...types.slice(0,5),ticket.type].filter(Boolean))], ticket.type) +
     field("System oder Gerät", "system", ticket.system, "maxlength=120") +
+    '<div id="portal-sap-fields" class="wide"' + (ticket.service === "ERP" ? "" : " hidden") + '>' +
+    (ticket.service === "ERP" ? sapFields(ticket.sapProcess,ticket.sapStep,ticket.sapContext,ticket.sapApp,ticket.sapError) : "") + '</div>' +
     descriptionEditorMarkup() + businessContextFields(ticket) + evidenceForm() + attachmentsForm() +
     '</div><p data-edit-error class="error" role="alert"></p><footer><button type="submit" class="primary">' +
     esc(t("Änderungen speichern")) + '</button></footer></form></details>';
@@ -544,6 +553,23 @@ function bindPortalEditor(ticket) {
   const panel = $("portal-editor");
   const form = $("portal-edit");
   const error = form.querySelector("[data-edit-error]");
+  const service = form.elements.namedItem("service");
+  const area = form.elements.namedItem("area");
+  const sap = $("portal-sap-fields");
+  const showSapFields = () => {
+    if (service.value === "ERP" && !sap.hasChildNodes()) {
+      sap.innerHTML = sapFields(ticket.sapProcess,ticket.sapStep,ticket.sapContext,ticket.sapApp,ticket.sapError);
+      bindSapFields(form);
+    }
+    sap.hidden = service.value !== "ERP";
+    for (const control of sap.querySelectorAll("input,select")) control.disabled = sap.hidden;
+  };
+  area.onchange = () => {
+    service.innerHTML = options(["Noch nicht bekannt", ...areaServices[area.value]], service.value);
+    showSapFields();
+  };
+  service.onchange = showSapFields;
+  bindSapFields(form);
   const editor = bindDescriptionEditor(ticket);
   const attachments = bindAttachments(ticket.attachments, {keepExisting:true});
   bindEvidence($("dialog"), attachments.addFile, () => panel.open);
@@ -557,7 +583,13 @@ function bindPortalEditor(ticket) {
     if (ticket.requester !== $("actor").value) return;
     const descriptionFormat = editor.getFormat();
     const files = attachments();
-    const changed = Object.keys(fields).filter(name => fields[name] !== (ticket[name] ?? ""));
+    if (fields.service !== "ERP") {
+      for (const name of ["sapProcess","sapStep","sapContext","sapApp","sapError"]) {
+        if (ticket[name]) fields[name] = "";
+      }
+    }
+    const changed = Object.keys(fields).filter(name => fields[name] !==
+      (ticket[name] ?? (name === "area" ? "IT" : name === "service" ? "Noch nicht bekannt" : ""))); 
     if (JSON.stringify(descriptionFormat) !== JSON.stringify(ticket.descriptionFormat ?? []) && !changed.includes("description")) changed.push("description");
     const added = files.filter(file => !(ticket.attachments ?? []).includes(file));
     if (!changed.length && !added.length) {
@@ -565,7 +597,8 @@ function bindPortalEditor(ticket) {
       return;
     }
     const labels = {title:"Betreff", description:"Beschreibung", sourceLanguage:"Sprache des Originals",
-      urgency:"Dringlichkeit (Einschätzung)", system:"System oder Gerät", ...businessContextLabels};
+      urgency:"Dringlichkeit (Einschätzung)", system:"System oder Gerät", area:"Servicebereich", service:"Betroffener Service", type:"Anliegenstyp",
+      sapProcess:"SAP-Geschäftsprozess", sapStep:"Prozessschritt", sapContext:"Organisation und Belegreferenz", sapApp:"Fiori-App oder Transaktion", sapError:"Fehlermeldung", ...businessContextLabels};
     const history = [...ticket.history];
     if (changed.length) history.push(systemEvent("Anliegen aktualisiert: {fields}", {
       fields:changed.map(name => t(labels[name])).join(", "), author:ticket.requester
@@ -575,7 +608,9 @@ function bindPortalEditor(ticket) {
     for (const name of Object.keys(businessContextLabels)) {
       if (changed.includes(name)) businessContextLanguages[name] = fields.sourceLanguage;
     }
-    const updated = {...ticket, ...fields, descriptionFormat, attachments:files, businessContextLanguages, history,
+    const catalogueChanged = ["area","service","type"].some(name => changed.includes(name));
+    const updated = {...ticket, ...fields, catalogItem:catalogueChanged ? "" : ticket.catalogItem,
+      sapComponent:fields.service === "ERP" ? ticket.sapComponent : "", descriptionFormat, attachments:files, businessContextLanguages, history,
       requesterEditedAt:new Date().toISOString()};
     await submit(form, tickets.map(item => item.number === ticket.number ? updated : item),
       t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}));
@@ -593,7 +628,7 @@ function openPortalTicket(ticket) {
     '<dl class="ticket-facts"><div><dt>' + esc(t("Betroffener Service")) + '</dt><dd>' + esc(t(ticket.service || "Noch nicht bekannt")) +
     '</dd></div><div><dt>' + esc(t("Anliegenstyp")) + '</dt><dd>' + esc(t(ticket.type)) +
     '</dd></div><div><dt>' + esc(t("Gemeldete Dringlichkeit")) + '</dt><dd>' + esc(t(ticket.urgency || "Noch nicht bekannt")) +
-    '</dd></div></dl>' + businessContextDisplay(ticket) + portalEditMarkup(ticket) + actionDisplay(ticket, true) + outageUpdates(ticket) + translationPanel(ticket) + (attachments ? '<h3>' + esc(t("Anhänge")) + '</h3><ul id="portal-attachments">' + attachments + '</ul>' : '') +
+    '</dd></div><div><dt>' + esc(t("Gemeldete Kritikalität")) + '</dt><dd>' + esc(t(ticket.reportedCriticality || "Noch nicht bewertet")) + '</dd></div></dl>' + businessContextDisplay(ticket) + portalEditMarkup(ticket) + actionDisplay(ticket, true) + outageUpdates(ticket) + translationPanel(ticket) + (attachments ? '<h3>' + esc(t("Anhänge")) + '</h3><ul id="portal-attachments">' + attachments + '</ul>' : '') +
     '<section class="history"><h3>' + esc(t("Kommunikation")) + '</h3><ul>' +
     conversation.map(entry => '<li><small class="muted">' + esc(date(entry.at)) + '</small> · ' +
       esc(t(entry.values.kind) + " · " + (entry.values.author ? entry.values.author + ": " : "")) + readingText(entry.values.note,entry.values.language) + '</li>').join("") +
@@ -604,6 +639,15 @@ function openPortalTicket(ticket) {
   appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
   bindTranslation(ticket);
   bindPortalEditor(ticket);
+  const editButton = $("edit-ticket");
+  editButton.textContent = t("Bearbeiten und Anhänge");
+  editButton.hidden = false;
+  editButton.onclick = () => {
+    const panel = $("portal-editor");
+    panel.open = true;
+    panel.scrollIntoView({block:"start"});
+    $("portal-edit").elements.namedItem("title").focus({preventScroll:true});
+  };
   if (nextAction(ticket)) {
     const works = $("action-works"), fails = $("action-fails"), error = $("action-error");
     const respond = async result => {
@@ -763,7 +807,7 @@ function openTicket(ticket) {
   const suggested = incidentPriority(ticket);
   show(number(ticket) + " · IT", ticket.title,
     '<p class="muted">' + esc(ticket.requester) + (ticket.department ? ' · ' + esc(t(ticket.department)) : '') + ' · ' + esc(t(ticket.area || "IT")) + " · " + esc(t(ticket.service || "IT")) + (ticket.urgency ? " · " + t("Gemeldete Dringlichkeit") + ": " + esc(t(ticket.urgency)) : "") + '</p><p id="ticket-description" class="rich-text">' +
-    '</p>' + businessContextDisplay(ticket) + actionDisplay(ticket, false) + translationPanel(ticket) + '<section class="intake-context" aria-label="' + esc(t("Erstbewertung")) + '"><p class="rich-label">' + esc(t("Nächster Schritt")) + '</p><p>' +
+    '</p><p><strong>' + esc(t("Gemeldete Kritikalität")) + '</strong> · ' + esc(t(ticket.reportedCriticality || "Noch nicht bewertet")) + '</p>' + businessContextDisplay(ticket) + actionDisplay(ticket, false) + translationPanel(ticket) + '<section class="intake-context" aria-label="' + esc(t("Erstbewertung")) + '"><p class="rich-label">' + esc(t("Nächster Schritt")) + '</p><p>' +
     esc(t(ticket.status === statuses[3] ? "Vorgang abgeschlossen." : intake[ticket.type]?.next ?? intake[types[0]].next)) + '</p>' +
     (ticket.rationale ? '<p><strong>' + esc(t("Projektbegründung")) + '</strong> · ' + readingText(ticket.rationale,ticket.rationaleLanguage) + '</p>' : '') +
     (ticket.delivery ? '<p><strong>' + esc(t("Ziel der Umsetzung")) + '</strong> · ' + readingText(ticket.delivery.goal,ticket.delivery.language) +
@@ -996,6 +1040,7 @@ try {
   $("new").disabled = true;
   $("notice").textContent = t("Der Browserspeicher ist nicht verfügbar. Bitte öffne den Prototyp in einem normalen Browserfenster.");
 }
+
 
 
 

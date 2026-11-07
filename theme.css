@@ -143,3 +143,8 @@ label[hidden] { display:none; }
 .ticket-facts dt { font-weight: 650; }
 .ticket-facts dd { margin: 0; }
 
+
+.dialog-head { position:sticky; top:0; z-index:2; }
+.dialog-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; }
+.dialog-actions button[hidden] { display:none; }
+.portal-editor { scroll-margin-top: 110px; }

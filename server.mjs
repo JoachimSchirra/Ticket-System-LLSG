@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
+import { handleDeepL } from "./deepl.mjs";
 
 const origin = "http://127.0.0.1:8092";
 const files = new Set(["index.html", "theme.css", "app.js", "storage.mjs", "i18n.mjs", "translation.mjs", "highlights.mjs", "operations.mjs",
@@ -9,6 +10,7 @@ const types = {html:"text/html", css:"text/css", js:"text/javascript", mjs:"text
 
 const server = createServer(async (request, response) => {
   const path = request.url?.split("?")[0].slice(1) || "index.html";
+  if (path === "api/translate/deepl") return handleDeepL(request,response,origin);
   if (!["GET", "HEAD"].includes(request.method) || !files.has(path)) {
     response.writeHead(404).end();
     return;

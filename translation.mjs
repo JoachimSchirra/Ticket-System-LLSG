@@ -27,7 +27,7 @@ export function translationPanel(ticket) {
     '<label>' + escape(t("Lesesprache des Tickets")) + '<select id="translation-target">' +
     languageOptions(getLanguage()) +
     '</select></label><button type="button" id="translate">' + escape(t("Mit KI übersetzen")) +
-    '</button></div><p id="translation-status" role="status"></p><div id="translation-result" hidden>' +
+    '</button><button type="button" id="translate-deepl">' + escape(t("Mit DeepL übersetzen")) + '</button></div><p id="translation-status" role="status"></p><div id="translation-result" hidden>' +
     '<button type="button" id="translation-original">' + escape(t("Original anzeigen")) + '</button></div></section>';
 }
 
@@ -35,7 +35,7 @@ export function bindTranslation(ticket) {
   const $ = id => document.getElementById(id);
   const dialog = $("dialog"), title = $("dialog-title"), description = $("ticket-description");
   const button = $("translate"), sourcePicker = $("translation-source"), targetPicker = $("translation-target");
-  const status = $("translation-status"), result = $("translation-result");
+  const status = $("translation-status"), result = $("translation-result"), deepLButton = $("translate-deepl");
   const content = $("content");
   const source = () => sourcePicker?.value ?? ticket.sourceLanguage;
   const originals = [
@@ -60,6 +60,7 @@ export function bindTranslation(ticket) {
   }
   function setBusy(busy) {
     button.disabled = busy || !globalThis.Translator || !hasLanguage(source());
+    if (deepLButton) deepLButton.disabled = busy || !hasLanguage(source());
     targetPicker.disabled = busy;
     if (sourcePicker) sourcePicker.disabled = busy;
   }
@@ -71,7 +72,7 @@ export function bindTranslation(ticket) {
     status.textContent = "";
     setBusy(false);
   }
-  async function translate() {
+  async function translate(provider = "browser") {
     currentRun?.abort();
     clearReading();
     const target = targetPicker.value;
@@ -80,7 +81,7 @@ export function bindTranslation(ticket) {
     const requested = originals.map(item => ({item,language:item.language || base}))
       .filter(({item,language}) => item.text.trim() && language !== target);
     if (!requested.length) return;
-    if (!globalThis.Translator) {
+    if (provider === "browser" && !globalThis.Translator) {
       status.textContent = t("Dieser Browser stellt die lokale KI-Übersetzung nicht bereit. Öffne das Ticket in einer unterstützten Desktop-Version von Chrome oder Edge.");
       return;
     }
@@ -93,8 +94,20 @@ export function bindTranslation(ticket) {
     status.textContent = t("Übersetzung wird erstellt …");
     try {
       for (const {item,language} of requested) {
-        const key = cacheKey(item.text,language,target);
+        const context = language === base ? ticket.description : "";
+        const key = provider === "deepl" ? JSON.stringify([provider,item.text,language,target,context]) : cacheKey(item.text,language,target);
         let value = cached.get(key);
+        if (value === undefined && provider === "deepl") {
+          const response = await fetch("/api/translate/deepl", {
+            method:"POST", headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({text:item.text,source:language,target,context}), signal:controller.signal
+          });
+          if (response.status === 503 || response.status === 404) throw Error("DeepL ist auf diesem Rechner noch nicht eingerichtet.");
+          if (!response.ok) throw Error("DeepL konnte den Text nicht übersetzen.");
+          value = (await response.json()).text;
+          if (cached.size >= 500) cached.delete(cached.keys().next().value);
+          cached.set(key,value);
+        }
         if (value === undefined) {
           let translator = translators.get(language);
           if (!translator) {
@@ -122,10 +135,10 @@ export function bindTranslation(ticket) {
       displayed = {translated,target};
       result.hidden = false;
       $("translation-original").textContent = t("Original anzeigen");
-      status.textContent = t("KI-Übersetzung") + " · " + languages[target];
+      status.textContent = (provider === "deepl" ? "DeepL" : t("KI-Übersetzung")) + " · " + languages[target];
     } catch (error) {
       if (currentRun === controller && dialog.open) status.textContent = t(
-        error.message === "Dieses Sprachpaar ist im Browser nicht verfügbar." ? error.message :
+        ["Dieses Sprachpaar ist im Browser nicht verfügbar.","DeepL ist auf diesem Rechner noch nicht eingerichtet.","DeepL konnte den Text nicht übersetzen."].includes(error.message) ? error.message :
           "Die Übersetzung konnte nicht erstellt werden. Bitte versuche es erneut.");
     } finally {
       clearTimeout(timeout);
@@ -141,9 +154,10 @@ export function bindTranslation(ticket) {
     event.target.textContent = t(readingOriginal ? "Übersetzung anzeigen" : "Original anzeigen");
   };
   dialog.addEventListener("close", () => { currentRun?.abort(); currentRun = null; }, {once:true});
-  if (sourcePicker) sourcePicker.onchange = translate;
-  targetPicker.onchange = translate;
-  button.onclick = translate;
+  if (sourcePicker) sourcePicker.onchange = () => translate();
+  targetPicker.onchange = () => translate();
+  button.onclick = () => translate();
+  if (deepLButton) deepLButton.onclick = () => translate("deepl");
   clearReading();
   return translate();
 }
