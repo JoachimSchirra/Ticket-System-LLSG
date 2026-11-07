@@ -413,6 +413,9 @@ Bearbeiten und Anhänge|Edit and attach files|Modifica e allega file|Editar y ad
 Mit DeepL übersetzen|Translate with DeepL|Traduci con DeepL|Traducir con DeepL
 DeepL ist auf diesem Rechner noch nicht eingerichtet.|DeepL has not been configured on this computer.|DeepL non è ancora configurato su questo computer.|DeepL aún no está configurado en este equipo.
 DeepL konnte den Text nicht übersetzen.|DeepL could not translate the text.|DeepL non ha potuto tradurre il testo.|DeepL no pudo traducir el texto.
+Für diese Person gibt es noch keine eigenen Anliegen.|This person has no requests of their own yet.|Questa persona non ha ancora richieste proprie.|Esta persona aún no tiene solicitudes propias.
+Zum IT-Arbeitsplatz und alle Tickets anzeigen|Open IT workspace and show all tickets|Apri l’area IT e mostra tutti i ticket|Abrir el área de TI y ver todos los tickets
+Nicht zugewiesen|Unassigned|Non assegnato|Sin asignar
 `;
 const dictionary = new Map(rows.trim().split("\n").map(row => {
   const [key, en, it, es] = row.split("|");
@@ -453,6 +456,7 @@ export function localize(root) {
     for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, t(value));
   }
 }
+
 
 
 

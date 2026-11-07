@@ -228,7 +228,10 @@ function render() {
       t.nextAction?.state === "works" ? '<small class="action-indicator">' + esc(translate("Test erfolgreich")) + '</small>' : '') +
     '</span><span>' + esc(translate(t.type)) + '</span><span class="pill">' + esc(translate(t.status)) +
     '</span><span class="pill ' + (priorities.indexOf(t.priority) >= 2 ? "urgent" : "") + '">' + esc(translate(t.priority)) + '</span></button>'
-  ).join("") || '<p class="muted empty">' + esc(t("Keine Tickets für diese Auswahl.")) + '</p>';
+  ).join("") || (!agent && !scope.length ?
+    '<div class="empty"><p class="muted">' + esc(t("Für diese Person gibt es noch keine eigenen Anliegen.")) + '</p>' +
+    '<div class="kanban-actions"><button type="button" data-open-it>' + esc(t("Zum IT-Arbeitsplatz und alle Tickets anzeigen")) + '</button></div></div>' :
+    '<p class="muted empty">' + esc(t("Keine Tickets für diese Auswahl.")) + '</p>');
 }
 
 function show(kicker, title, body) {
@@ -825,7 +828,8 @@ function openTicket(ticket) {
     (ticket.service === "ERP" ? '<fieldset class="wide feature-group"><legend>' + esc(t("SAP S/4HANA")) +
       '</legend>' + sapFields(ticket.sapProcess, ticket.sapStep, ticket.sapContext, ticket.sapApp, ticket.sapError) +
       select("SAP-Komponente", "sapComponent", ["", ...sapComponents], ticket.sapComponent, value => t(value || "Noch nicht bekannt")) + '</fieldset>' : "") +
-    field("System oder Gerät", "system", ticket.system, "maxlength=120") + field("Zuständige Person", "owner", ticket.owner, "maxlength=100") +
+    field("System oder Gerät", "system", ticket.system, "maxlength=120") + select("Zuständige Person", "owner", [...new Set(["", ...agents, ticket.owner || ""])], ticket.owner || "",
+      value => value || t("Nicht zugewiesen")) +
     (suggested ? '<div class="wide intake-context"><p>' +
       esc(t("Prioritätsvorschlag aus Auswirkung und Dringlichkeit: {priority}", {priority:t(suggested)})) +
       '</p><button type="button" id="apply-priority">' + esc(t("Vorschlag übernehmen")) + '</button></div>' : '') +
@@ -1012,6 +1016,16 @@ $("close").onclick = () => $("dialog").close();
 $("dialog").addEventListener("close",render);
 $("content").onclick = (e) => { if (e.target.closest("[data-close]")) $("dialog").close(); };
 $("rows").onclick = (e) => {
+  if (e.target.closest("[data-open-it]")) {
+    $("workspace").value = "it";
+    $("view").value = views[0];
+    $("area-filter").selectedIndex = $("type").selectedIndex = $("status").selectedIndex = 0;
+    $("search").value = "";
+    activeMetric = "";
+    render();
+    $("workspace").focus();
+    return;
+  }
   const row = e.target.closest("[data-number]");
   if (row) openTicket(tickets.find(t => t.number === Number(row.dataset.number)));
 };
