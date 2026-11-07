@@ -35,3 +35,13 @@ Tickets und Anhänge werden im Browserprofil für diese lokale Adresse gespeiche
 Oben unter **Arbeitsbereich** zwischen Anliegenportal und IT-Arbeitsplatz wechseln. Im Portal die anfragende Person auswählen. Das Portal zeigt ihre Tickets, die Beschreibung, Anhänge und Rückfragen oder Antworten. Im IT-Arbeitsplatz eine Demo-Persona auswählen. Dort sind alle Tickets sowie Bearbeitungsfelder, Freigaben, interne Notizen und Verknüpfungen verfügbar. Der Rollenwechsel dient der Demo. Die lokale Anwendung hat keine Anmeldung und keine serverseitigen Zugriffsrechte.
 
 Die Oberfläche sowie Original- und Zielsprachauswahl unterstützen Deutsch, Englisch, Italienisch und Spanisch. Nach einem Update mit Änderungen am Server den bisherigen Prozess mit Strg+C beenden und die Startdatei erneut öffnen. Die App über http://127.0.0.1:8092 laden.
+
+## Lesesprache und neue Abläufe
+
+Beim Öffnen übernimmt das Ticket die Sprache der Oberfläche. Im Ticket kann man die Lesesprache jederzeit ändern, auch zurück zur Originalsprache. Betreff, Beschreibung, sichtbare Nachrichten und ausgewählte Arbeitstexte werden direkt in der Ansicht übersetzt. **Original anzeigen** stellt die gespeicherten Texte wieder her. Neue Nachrichten speichern ihre eigene Originalsprache. Bei älteren Nachrichten ohne Sprachangabe verwendet die Übersetzung die Originalsprache des Tickets als Anhaltspunkt. Technische Kennungen, Personennamen und editierbare Originalfelder bleiben erhalten. Die Sprachmodelle und ihre Verfügbarkeit hängen vom Desktop-Browser ab.
+
+- Im Anliegenportal einen Screenshot einfügen oder auswählen. Markierungen und Schwärzungen werden beim Übernehmen in eine neue PNG-Datei eingebrannt. Die ursprüngliche Bilddatei wird in diesem Ablauf nicht angehängt.
+- Im IT-Arbeitsplatz einen Funktionstest anfordern. Im Portal mit **Funktioniert** oder **Fehler besteht noch** antworten. Bei einem Fehlschlag wird eine Beschreibung verlangt. Die Antwort erscheint in der IT-Warteschlange.
+- Eine Störung mit einem öffentlichen Titel als Sammelstörung veröffentlichen. Bei einer neuen Störung für denselben Service können sich Anfragende als betroffen melden und veröffentlichte Statusmeldungen in ihrem Ticket sehen.
+- Für einen genehmigten Change einen Kanban-Entwurf vorbereiten, prüfen und kopieren. Die Karte im Board anlegen und den Kartenlink im Ticket speichern. Danach die Abnahme im Ticket anfordern. Das Board sperrt Schreibzugriffe von anderen lokalen Ursprüngen.
+- Im IT-Arbeitsplatz einen Diagnoseentwurf oder eine Schichtübergabe öffnen. Bei einem Screenshot und einem kompatiblen Browser kann die lokale KI einen zusätzlichen Diagnoseentwurf erzeugen. Die Schichtübergabe verlinkt auf die jeweiligen Verlaufseinträge.

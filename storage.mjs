@@ -81,6 +81,7 @@ export function bindAttachments(initial = []) {
   }
   function add(selection) {
     const issues = [];
+    const before = files.length;
     let total = files.reduce((sum, file) => sum + file.size, 0);
     for (const file of selection) {
       if (files.some(item => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified)) continue;
@@ -93,6 +94,7 @@ export function bindAttachments(initial = []) {
     }
     id("attachment-status").textContent = issues.join(" ");
     render();
+    return files.length > before;
   }
   picker.onchange = () => { add(picker.files); picker.value = ""; };
   zone.ondragover = (event) => {
@@ -107,7 +109,7 @@ export function bindAttachments(initial = []) {
     add(event.dataTransfer.files);
   };
   render();
-  return () => [...files];
+  return Object.assign(() => [...files], {addFile: file => add([file])});
 }
 
 export function downloadAttachment(file) {
@@ -118,3 +120,4 @@ export function downloadAttachment(file) {
   link.click();
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+

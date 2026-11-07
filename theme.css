@@ -127,3 +127,10 @@ body[data-workspace="it"] .intro {
 @media (prefers-reduced-motion: reduce) {
   .metric { transition: none; }
 }
+
+.evidence canvas { display:block; width:auto; max-width:100%; max-height:420px; margin:12px 0; touch-action:none; border:1px solid var(--line); cursor:crosshair; }
+.evidence [hidden], #delivery-preview[hidden], #agent-draft[hidden] { display:none; }
+.evidence .kanban-actions { margin-top:12px; }
+#delivery-text { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
+.action-card { border-left-width:4px; }
+.row .action-indicator { color:var(--accent); font-weight:700; }

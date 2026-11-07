@@ -241,6 +241,77 @@ Nummerierung ein-/ausschalten|Toggle numbered list|Attiva o disattiva numerazion
 Formatierung im markierten Text entfernen|Clear formatting in selected text|Rimuovi la formattazione dal testo selezionato|Quitar formato del texto seleccionado
 Im Text rückgängig (Strg+Z)|Undo (Ctrl+Z)|Annulla (Ctrl+Z)|Deshacer (Ctrl+Z)
 Im Text wiederholen (Strg+Y)|Redo (Ctrl+Y)|Ripristina (Ctrl+Y)|Rehacer (Ctrl+Y)
+Lesesprache des Tickets|Ticket reading language|Lingua di lettura del ticket|Idioma de lectura del ticket
+Original anzeigen|Show original|Mostra originale|Mostrar original
+Übersetzung anzeigen|Show translation|Mostra traduzione|Mostrar traducción
+Sprachmodell wird geladen: {percent} %|Downloading language model: {percent}%|Download del modello linguistico: {percent}%|Descargando modelo de idioma: {percent} %
+Antwort senden|Send reply|Invia risposta|Enviar respuesta
+Sprache der Nachricht|Message language|Lingua del messaggio|Idioma del mensaje
+Screenshot markieren|Annotate screenshot|Annota schermata|Marcar captura
+Screenshot einfügen oder auswählen. Markierungen und Schwärzungen werden in die Vorschau eingebrannt.|Paste or select a screenshot. Annotations and redactions are flattened into the preview.|Incolla o seleziona una schermata. Annotazioni e oscuramenti vengono incorporati nell’anteprima.|Pega o selecciona una captura. Las marcas y los tachados se incorporan a la vista previa.
+Screenshot auswählen|Choose screenshot|Seleziona schermata|Seleccionar captura
+Werkzeug|Tool|Strumento|Herramienta
+Markieren|Annotate|Annota|Marcar
+Schwärzen|Redact|Oscura|Ocultar
+Rückgängig|Undo|Annulla|Deshacer
+Vorschau als Anhang übernehmen|Attach preview|Allega anteprima|Adjuntar vista previa
+Screenshot-Vorschau|Screenshot preview|Anteprima schermata|Vista previa de la captura
+Bitte ein PNG-, JPEG- oder WebP-Bild bis 20 MB auswählen.|Choose a PNG, JPEG or WebP image up to 20 MB.|Scegli un’immagine PNG, JPEG o WebP fino a 20 MB.|Selecciona una imagen PNG, JPEG o WebP de hasta 20 MB.
+Das Bild konnte nicht geöffnet werden.|The image could not be opened.|Impossibile aprire l’immagine.|No se pudo abrir la imagen.
+Vorschau als Anhang übernommen.|Preview attached.|Anteprima allegata.|Vista previa adjuntada.
+Rückmeldung erbeten|Response requested|Riscontro richiesto|Respuesta solicitada
+Fehler besteht noch|Issue persists|Il problema persiste|El problema continúa
+Test erfolgreich|Test passed|Test riuscito|Prueba superada
+Bekannte Störung gefunden. Du kannst dich als betroffen melden.|A known incident matches. You can report that you are affected.|È presente un incidente noto. Puoi segnalare di essere coinvolto.|Hay una incidencia conocida. Puedes indicar que te afecta.
+Bekannte Störung|Known incident|Incidente noto|Incidencia conocida
+Eigenes Ticket erfassen|Create a separate ticket|Crea un ticket separato|Crear un ticket independiente
+Ich bin betroffen|I am affected|Sono coinvolto|Me afecta
+Ich bin von dieser Störung betroffen.|I am affected by this incident.|Sono coinvolto in questo incidente.|Esta incidencia me afecta.
+Du hast dich für diese Störung bereits als betroffen gemeldet.|You have already reported being affected by this incident.|Hai già segnalato di essere coinvolto in questo incidente.|Ya has indicado que esta incidencia te afecta.
+Abnahme der Umsetzung|Implementation acceptance|Collaudo dell’implementazione|Validación de la implementación
+Was ist noch offen?|What is still unresolved?|Che cosa resta da risolvere?|¿Qué sigue sin resolverse?
+Funktioniert|It works|Funziona|Funciona
+Status der Sammelstörung|Shared incident status|Stato dell’incidente condiviso|Estado de la incidencia compartida
+Bitte beschreibe, was noch nicht funktioniert.|Describe what still does not work.|Descrivi cosa non funziona ancora.|Describe qué sigue sin funcionar.
+Testergebnis: {result}|Test result: {result}|Esito del test: {result}|Resultado de la prueba: {result}
+Test und Abnahme|Testing and acceptance|Test e collaudo|Pruebas y validación
+Bitte um einen Funktionstest|Request a functional test|Richiesta di test funzionale|Solicitud de prueba funcional
+Kanban-Aktion|Kanban action|Azione Kanban|Acción de Kanban
+Übergabe vorbereiten|Prepare handoff|Prepara il passaggio|Preparar traspaso
+Abnahme anfordern|Request acceptance|Richiedi il collaudo|Solicitar validación
+Ziel der Umsetzung|Implementation objective|Obiettivo dell’implementazione|Objetivo de la implementación
+Projekt|Project|Progetto|Proyecto
+Zielspalte|Target column|Colonna di destinazione|Columna de destino
+Abnahmekriterien|Acceptance criteria|Criteri di collaudo|Criterios de aceptación
+Kanban-Entwurf prüfen|Review Kanban draft|Controlla la bozza Kanban|Revisar borrador Kanban
+Kanban-Board öffnen|Open Kanban board|Apri bacheca Kanban|Abrir tablero Kanban
+Entwurf kopieren|Copy draft|Copia bozza|Copiar borrador
+Sammelstörung|Shared incident|Incidente condiviso|Incidencia compartida
+Sammelstörungsaktion|Shared incident action|Azione sull’incidente condiviso|Acción sobre incidencia compartida
+Als Sammelstörung veröffentlichen|Publish as a shared incident|Pubblica come incidente condiviso|Publicar como incidencia compartida
+Sammelstörung beenden|Resolve shared incident|Chiudi l’incidente condiviso|Cerrar incidencia compartida
+Öffentlicher Störungstitel|Public incident title|Titolo pubblico dell’incidente|Título público de la incidencia
+Statusmeldung für Betroffene|Status update for affected users|Aggiornamento per le persone coinvolte|Actualización para las personas afectadas
+Sammelstörung aktiv|Shared incident active|Incidente condiviso attivo|Incidencia compartida activa
+Sammelstörung beendet|Shared incident resolved|Incidente condiviso chiuso|Incidencia compartida cerrada
+{count} betroffene Personen|{count} affected people|{count} persone coinvolte|{count} personas afectadas
+Diagnose und Schichtübergabe|Diagnosis and shift handoff|Diagnosi e passaggio di turno|Diagnóstico y traspaso de turno
+Diagnoseentwurf anzeigen|Show triage draft|Mostra bozza di diagnosi|Mostrar borrador de diagnóstico
+Schichtübergabe anzeigen|Show shift handoff|Mostra passaggio di turno|Mostrar traspaso de turno
+Gemeldete Fakten|Reported facts|Fatti segnalati|Hechos comunicados
+Offene Fragen|Open questions|Domande aperte|Preguntas pendientes
+Bildanhänge|Image attachments|Immagini allegate|Imágenes adjuntas
+KI-Entwurf (Englisch, bitte prüfen)|AI draft (English, review required)|Bozza IA (inglese, da verificare)|Borrador de IA (en inglés, requiere revisión)
+Belegte Rückmeldungen und Entscheidungen|Sourced replies and decisions|Risposte e decisioni documentate|Respuestas y decisiones documentadas
+Noch keine Rückmeldungen oder Entscheidungen dokumentiert.|No replies or decisions have been recorded yet.|Non ci sono ancora risposte o decisioni registrate.|Aún no se han registrado respuestas ni decisiones.
+Kanban-Entwurf kopiert. Lege die Karte im Board an und hinterlege ihren Link.|Kanban draft copied. Create the card on the board and add its link here.|Bozza Kanban copiata. Crea la scheda nella bacheca e aggiungi qui il suo link.|Borrador Kanban copiado. Crea la tarjeta en el tablero y añade aquí su enlace.
+Für die Übergabe brauchst du einen genehmigten Change, ein Ziel und Abnahmekriterien.|Handoff requires an approved change, an objective and acceptance criteria.|Il passaggio richiede una modifica approvata, un obiettivo e criteri di collaudo.|El traspaso requiere un cambio aprobado, un objetivo y criterios de aceptación.
+Kanban-Übergabe vorbereitet|Kanban handoff prepared|Passaggio Kanban preparato|Traspaso a Kanban preparado
+Abnahme angefordert|Acceptance requested|Collaudo richiesto|Validación solicitada
+Bitte zuerst die Umsetzung vorbereiten und die Kanban-Karte verlinken.|Prepare the implementation and link the Kanban card first.|Prepara prima l’implementazione e collega la scheda Kanban.|Primero prepara la implementación y vincula la tarjeta Kanban.
+Test angefordert|Test requested|Test richiesto|Prueba solicitada
+Für eine Sammelstörung brauchst du eine Störung mit öffentlichem Titel.|A shared incident requires an incident with a public title.|Un incidente condiviso richiede un incidente con un titolo pubblico.|Una incidencia compartida requiere una incidencia con un título público.
+Sammelstörung aktualisiert|Shared incident updated|Incidente condiviso aggiornato|Incidencia compartida actualizada
 `;
 const dictionary = new Map(rows.trim().split("\n").map(row => {
   const [key, en, it, es] = row.split("|");
@@ -279,6 +350,9 @@ export function localize(root) {
     for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, t(value));
   }
 }
+
+
+
 
 
 
