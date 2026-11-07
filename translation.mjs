@@ -1,4 +1,4 @@
-import { getLanguage, languages, t } from "./i18n.mjs";
+import { getLanguage, languages, t, uiText } from "./i18n.mjs";
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g, c =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
@@ -62,7 +62,7 @@ export function readingText(value, source = "") {
 }
 
 function languageOptions(current, placeholder = "") {
-  return (placeholder ? '<option value="">' + escape(t(placeholder)) + '</option>' : "") +
+  return (placeholder ? '<option value="" data-ui-key="' + escape(placeholder) + '">' + escape(t(placeholder)) + '</option>' : "") +
     Object.entries(languages).map(([code, label]) =>
       '<option value="' + code + '"' + (code === current ? " selected" : "") + ">" + label + "</option>"
     ).join("");
@@ -71,17 +71,17 @@ function languageOptions(current, placeholder = "") {
 export function translationPanel(ticket) {
   const source = hasLanguage(ticket.sourceLanguage) ? ticket.sourceLanguage : "";
   return '<section class="translation-panel" aria-label="' + escape(t("KI-Übersetzung")) + '"><div class="translation-controls">' +
-    (source ? '<p><strong>' + escape(t("Sprache des Originals")) + '</strong> · ' + languages[source] + '</p>' :
-      '<label>' + escape(t("Sprache des Originals")) + '<select id="translation-source">' +
+    (source ? '<p><strong>' + uiText("Sprache des Originals") + '</strong> · ' + languages[source] + '</p>' :
+      '<label>' + uiText("Sprache des Originals") + '<select id="translation-source">' +
       languageOptions("", "Originalsprache unbekannt") + '</select></label>') +
-    '<label>' + escape(t("Lesesprache des Tickets")) + '<select id="translation-target">' +
+    '<label>' + uiText("Lesesprache des Tickets") + '<select id="translation-target">' +
     languageOptions(getLanguage()) +
-    '</select></label><button type="button" id="translate">' + escape(t("Mit KI übersetzen")) +
-    '</button><button type="button" id="translate-deepl">' + escape(t("Mit DeepL übersetzen")) + '</button></div><p id="translation-status" role="status"></p><div id="translation-result" hidden>' +
-    '<button type="button" id="translation-original">' + escape(t("Original anzeigen")) + '</button></div></section>';
+    '</select></label><button type="button" id="translate">' + uiText("Mit KI übersetzen") +
+    '</button><button type="button" id="translate-deepl">' + uiText("Mit DeepL übersetzen") + '</button></div><p id="translation-status" role="status"></p><div id="translation-result" hidden>' +
+    '<button type="button" id="translation-original">' + uiText("Original anzeigen") + '</button></div></section>';
 }
 
-export function bindTranslation(ticket) {
+export function bindTranslation(ticket, changeLanguage) {
   const $ = id => document.getElementById(id);
   const dialog = $("dialog"), title = $("dialog-title"), description = $("ticket-description");
   const button = $("translate"), sourcePicker = $("translation-source"), targetPicker = $("translation-target");
@@ -124,6 +124,7 @@ export function bindTranslation(ticket) {
   }
   async function translate(provider = "browser") {
     currentRun?.abort();
+    currentRun = null;
     clearReading();
     const target = targetPicker.value;
     const base = source();
@@ -201,11 +202,20 @@ export function bindTranslation(ticket) {
     readingOriginal = !readingOriginal;
     if (readingOriginal) restore();
     else showReading(displayed.translated,displayed.target);
-    event.target.textContent = t(readingOriginal ? "Übersetzung anzeigen" : "Original anzeigen");
+    $("translation-original").innerHTML = uiText(readingOriginal ? "Übersetzung anzeigen" : "Original anzeigen");
   };
-  dialog.addEventListener("close", () => { currentRun?.abort(); currentRun = null; }, {once:true});
+  const onLanguageChange = () => {
+    targetPicker.value = getLanguage();
+    return translate();
+  };
+  document.addEventListener?.("llsg-language-change", onLanguageChange);
+  dialog.addEventListener("close", () => {
+    currentRun?.abort();
+    currentRun = null;
+    document.removeEventListener?.("llsg-language-change", onLanguageChange);
+  }, {once:true});
   if (sourcePicker) sourcePicker.onchange = () => translate();
-  targetPicker.onchange = () => translate();
+  targetPicker.onchange = () => changeLanguage ? changeLanguage(targetPicker.value) : translate();
   button.onclick = () => translate();
   if (deepLButton) deepLButton.onclick = () => translate("deepl");
   clearReading();

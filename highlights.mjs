@@ -1,16 +1,16 @@
-import { t } from "./i18n.mjs";
+import { t, uiText } from "./i18n.mjs";
 
 export const escape = value => String(value ?? "").replace(/[&<>"']/g, c =>
   ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[c]);
 
 export function evidenceForm() {
-  return '<fieldset class="wide feature-group evidence"><legend>' + escape(t("Screenshot markieren")) + '</legend>' +
-    '<p>' + escape(t("Screenshot einfügen oder auswählen. Markierungen und Schwärzungen werden in die Vorschau eingebrannt.")) + '</p>' +
+  return '<fieldset class="wide feature-group evidence"><legend>' + uiText("Screenshot markieren") + '</legend>' +
+    '<p>' + uiText("Screenshot einfügen oder auswählen. Markierungen und Schwärzungen werden in die Vorschau eingebrannt.") + '</p>' +
     '<input id="evidence-file" type="file" accept="image/png,image/jpeg,image/webp" aria-label="' + escape(t("Screenshot auswählen")) + '">' +
-    '<div id="evidence-tools" hidden><div class="kanban-actions"><label>' + escape(t("Werkzeug")) + '<select id="evidence-mode">' +
-    '<option value="mark">' + escape(t("Markieren")) + '</option><option value="redact">' + escape(t("Schwärzen")) + '</option></select></label>' +
-    '<button type="button" id="evidence-undo">' + escape(t("Rückgängig")) + '</button>' +
-    '<button type="button" id="evidence-add">' + escape(t("Vorschau als Anhang übernehmen")) + '</button></div>' +
+    '<div id="evidence-tools" hidden><div class="kanban-actions"><label>' + uiText("Werkzeug") + '<select id="evidence-mode">' +
+    '<option value="mark" data-ui-key="Markieren">' + escape(t("Markieren")) + '</option><option value="redact" data-ui-key="Schwärzen">' + escape(t("Schwärzen")) + '</option></select></label>' +
+    '<button type="button" id="evidence-undo">' + uiText("Rückgängig") + '</button>' +
+    '<button type="button" id="evidence-add">' + uiText("Vorschau als Anhang übernehmen") + '</button></div>' +
     '<canvas id="evidence-canvas" aria-label="' + escape(t("Screenshot-Vorschau")) + '"></canvas></div><p id="evidence-status" role="status"></p></fieldset>';
 }
 

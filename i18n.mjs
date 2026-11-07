@@ -446,6 +446,58 @@ export function t(key, values = {}) {
   const label = dictionary.get(key)?.[language] ?? String(key ?? "");
   return label.replace(/\{(\w+)\}/g, (match, name) => values[name] ?? match);
 }
+const escapeUI = value => String(value ?? "").replace(/[&<>"']/g, char =>
+  ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"})[char]);
+// Keep the message key with rendered interface text. User content is never marked.
+export function uiText(key, values = {}, localized = []) {
+  const translatedValues = Object.fromEntries(Object.entries(values).map(([name, value]) =>
+    [name, localized.includes(name) ? t(value) : value]));
+  return '<span data-ui-key="' + escapeUI(key) + '" data-ui-values="' +
+    escapeUI(JSON.stringify(values)) + '" data-ui-localized="' + escapeUI(JSON.stringify(localized)) +
+    '">' + escapeUI(t(key, translatedValues)) + '</span>';
+}
+export function labelKey(label) {
+  for (const [key, translations] of dictionary) {
+    if ((translations[language] ?? key) === label) return key;
+  }
+  return label;
+}
+export function localizeUI(root) {
+  for (const element of root.querySelectorAll("[data-ui-key]")) {
+    const values = JSON.parse(element.dataset.uiValues || "{}");
+    const localized = JSON.parse(element.dataset.uiLocalized || "[]");
+    element.textContent = t(element.dataset.uiKey, Object.fromEntries(Object.entries(values).map(([name, value]) =>
+      [name, localized.includes(name) ? t(value) : value])));
+  }
+  for (const name of ["aria-label", "placeholder", "title"]) {
+    for (const element of root.querySelectorAll('[data-ui-' + name + ']')) {
+      element.setAttribute(name, t(element.getAttribute('data-ui-' + name)));
+    }
+  }
+}
+// Called only for static interface fragments, before their first localization.
+export function markStaticUI(root) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  const nodes = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
+  for (const node of nodes) {
+    const key = node.nodeValue.trim();
+    if (!dictionary.has(key)) continue;
+    if (node.parentElement.tagName === "OPTION") node.parentElement.dataset.uiKey = key;
+    else {
+      const span = document.createElement("span");
+      span.dataset.uiKey = key;
+      span.textContent = key;
+      node.replaceWith(span);
+    }
+  }
+  for (const element of root.querySelectorAll("[aria-label], [placeholder], [title]")) {
+    for (const name of ["aria-label", "placeholder", "title"]) {
+      const key = element.getAttribute(name);
+      if (dictionary.has(key)) element.setAttribute("data-ui-" + name, key);
+    }
+  }
+}
 const original = new WeakMap();
 export function localize(root) {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);

@@ -1,4 +1,4 @@
-import { localize, t } from "./i18n.mjs";
+import { uiText, t } from "./i18n.mjs";
 
 const database = new Promise((resolve, reject) => {
   const request = indexedDB.open("llsg-ticket-system", 1);
@@ -49,29 +49,29 @@ const maxTicketSize = 40 * 1024 * 1024;
 const id = (name) => document.getElementById(name);
 
 export function attachmentsForm() {
-  return '<section class="wide"><p class="rich-label">Anhänge</p><div id="dropzone" class="dropzone">' +
-    '<p>Dateien aus dem Explorer hierher ziehen oder auswählen.</p>' +
-    '<input id="attachment-picker" type="file" multiple aria-label="Anhänge auswählen">' +
-    '<small class="muted"> Bis zu 10 MB pro Datei und 40 MB pro Ticket.</small></div>' +
+  return '<section class="wide"><p class="rich-label">' + uiText("Anhänge") + '</p><div id="dropzone" class="dropzone">' +
+    '<p>' + uiText("Dateien aus dem Explorer hierher ziehen oder auswählen.") + '</p>' +
+    '<input id="attachment-picker" type="file" multiple data-ui-aria-label="Anhänge auswählen" aria-label="' + t("Anhänge auswählen") + '">' +
+    '<small class="muted">' + uiText("Bis zu 10 MB pro Datei und 40 MB pro Ticket.") + '</small></div>' +
     '<p id="attachment-status" role="status"></p><ul id="attachments" class="attachments"></ul></section>';
 }
 
 export function bindAttachments(initial = [], {keepExisting = false} = {}) {
   let files = [...initial];
   const picker = id("attachment-picker"), zone = id("dropzone"), list = id("attachments");
-  localize(zone);
-  localize(zone.parentElement);
   function render() {
     list.replaceChildren();
     for (const file of files) {
       const item = document.createElement("li");
       const download = document.createElement("button");
       download.type = "button";
+      download.dataset.uiKey = "Herunterladen";
       download.textContent = t("Herunterladen");
       download.setAttribute("aria-label", t("Herunterladen") + " " + file.name);
       download.onclick = () => downloadAttachment(file);
       const remove = document.createElement("button");
       remove.type = "button";
+      remove.dataset.uiKey = "Entfernen";
       remove.textContent = t("Entfernen");
       remove.setAttribute("aria-label", t("Entfernen") + " " + file.name);
       remove.onclick = () => { files = files.filter(item => item !== file); render(); };
