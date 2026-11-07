@@ -13,6 +13,21 @@ const statuses = ["Neu", "In Bearbeitung", "Wartet auf Rückmeldung", "Abgeschlo
 const priorities = ["Niedrig", "Normal", "Hoch", "Kritisch"];
 const decisions = ["Nicht beantragt", "In Prüfung", "Abgelehnt", "Als Projekt übernommen"];
 const services = ["ERP", "Arbeitsplatz & Hardware", "Zugänge & Berechtigungen", "E-Mail & Zusammenarbeit", "Netzwerk & VPN", "Sonstiger IT-Service"];
+const sapSteps = {
+  "Beschaffung bis Zahlung":["Bestellung anlegen oder freigeben","Wareneingang buchen","Qualitätsprüfung durchführen","Lieferantenrechnung prüfen oder buchen"],
+  "Auftrag bis Zahlung":["Kundenauftrag bearbeiten","Lieferung und Warenausgang","Fakturierung"],
+  "Finanzabschluss":["Sachkontenbuchung","Abschluss und Abstimmung"],
+  "Planung und Produktion":["Materialbedarf planen","Fertigungsauftrag bearbeiten"],
+  "Technischer Betrieb":["Schnittstelle oder Hintergrundjob"]
+};
+const sapProcesses = Object.keys(sapSteps);
+const sapComponents = ["FI","CO","MM","QM","SD","PP","Basis"];
+const sapStepContext = {
+  "Bestellung anlegen oder freigeben":"Bestellung oder Bestellanforderung",
+  "Wareneingang buchen":"Werk und Bestellposition",
+  "Qualitätsprüfung durchführen":"Werk und Prüflos",
+  "Lieferantenrechnung prüfen oder buchen":"Buchungskreis und Rechnungsreferenz"
+};
 const areaServices = {
   IT:services, HR:["Personalbescheinigung","Eintritt und Austritt"],
   Marketing:["Marketingmaterial","Kampagnenunterstützung"],
@@ -35,7 +50,12 @@ const isAgent = () => $("workspace").value === "it";
 const departments = [...new Set(people.map(person => person.department))];
 const otherRequester = "Andere Person";
 const catalog = {
-  "ERP-Berechtigung": {service:"Zugänge & Berechtigungen", owner:"Old Grumpy SAP Cat", hint:"Nenne das ERP-System, die benötigte Rolle und den gewünschten Gültigkeitszeitraum."},
+  "ERP-Berechtigung": {service:"ERP", owner:"Old Grumpy SAP Cat", hint:"Nenne die benötigte SAP-Rolle, das Zielsystem und den Gültigkeitszeitraum."},
+  "Lieferantenrechnung kann nicht gebucht werden": {service:"ERP", type:"Störung", process:sapProcesses[0], step:sapSteps[sapProcesses[0]][3], hint:"Nenne den Buchungskreis, die Fiori-App oder Transaktion und die genaue Fehlermeldung."},
+  "Wareneingang kann nicht gebucht werden": {service:"ERP", type:"Störung", process:sapProcesses[0], step:sapSteps[sapProcesses[0]][1], hint:"Nenne Werk, Bestellposition und Fehlermeldung beim Wareneingang."},
+  "Prüflos fehlt oder Verwendungsentscheid ist blockiert": {service:"ERP", type:"Störung", process:sapProcesses[0], step:sapSteps[sapProcesses[0]][2], hint:"Nenne Werk, Prüflos und den Schritt, an dem die Qualitätsprüfung stockt."},
+  "Freigaberegel für Bestellungen ändern": {service:"ERP", type:"Änderungsantrag", process:sapProcesses[0], step:sapSteps[sapProcesses[0]][0], hint:"Beschreibe den heutigen Freigabeweg, die gewünschte Regel und ein Abnahmebeispiel."},
+  "SAP-Schnittstelle oder Hintergrundjob gestört": {service:"ERP", type:"Störung", process:sapProcesses[4], step:sapSteps[sapProcesses[4]][0], hint:"Nenne Schnittstelle oder Job, Zeitpunkt und die Auswirkung auf den Geschäftsprozess."},
   "Notebook bereitstellen": {service:"Arbeitsplatz & Hardware", owner:"Felix Klug", hint:"Nenne Einsatzort, Einsatzbeginn und besondere Anforderungen."},
   "VPN-Zugang": {service:"Netzwerk & VPN", owner:"Aktivrentner Joe", hint:"Nenne Gerät, Einsatzort und den benötigten Zeitraum."},
   "Gemeinsames Postfach": {service:"E-Mail & Zusammenarbeit", owner:"Felix Klug", hint:"Nenne den gewünschten Postfachnamen und die Personen, die Zugriff brauchen."}
@@ -191,7 +211,7 @@ function render() {
   const filtered = selected.filter(t =>
     (!$("type").selectedIndex || t.type === $("type").value) &&
     (!$("status").selectedIndex || t.status === $("status").value) &&
-    [number(t), t.title, t.description, t.owner, t.service, t.requester, t.department, t.system, translate(t.service), translate(t.department), translate(t.type), translate(t.status), translate(t.priority)].join(" ").toLocaleLowerCase(getLanguage()).includes(query)
+    [number(t), t.title, t.description, t.owner, t.service, t.requester, t.department, t.system, t.sapProcess, t.sapStep, t.sapComponent, t.sapContext, t.sapApp, t.sapError, translate(t.sapStep), translate(t.sapProcess), translate(t.service), translate(t.department), translate(t.type), translate(t.status), translate(t.priority)].join(" ").toLocaleLowerCase(getLanguage()).includes(query)
   );
   $("metric-filter").hidden = !activeMetric;
   $("clear-metric").textContent = t("Kachelfilter entfernen");
@@ -222,6 +242,32 @@ const formEnd = (label = "Speichern") => '<div id="error" class="error" role="al
 const select = (label, name, values, current, labelFor) => '<label>' + esc(t(label)) + '<select name="' + name + '">' + options(values, current, labelFor) + '</select></label>';
 const field = (label, name, value, extra = "") => '<label>' + esc(t(label)) + '<input name="' + name + '" value="' + esc(value) + '" ' + extra + '></label>';
 
+function sapFields(process, step, context, app, error) {
+  const known = Object.hasOwn(sapSteps, process);
+  const processOptions = process && !known ? [...sapProcesses, process] : sapProcesses;
+  return '<div class="grid">' +
+    select("SAP-Geschäftsprozess", "sapProcess", ["", ...processOptions], process, value => t(value || "Noch nicht bekannt")) +
+    select("Prozessschritt", "sapStep", ["", ...(known ? sapSteps[process] : [])], step, value => t(value || "Noch nicht bekannt")) +
+    '<label><span id="sap-context-label">' + esc(t(sapStepContext[step] ?? "Organisation und Belegreferenz")) +
+    '</span><input name="sapContext" value="' + esc(context) + '" maxlength="160"></label>' +
+    field("Fiori-App oder Transaktion", "sapApp", app, "maxlength=120") +
+    field("Fehlermeldung", "sapError", error, "maxlength=500") + '</div>';
+}
+
+function bindSapFields(form) {
+  const process = form.elements.namedItem("sapProcess");
+  if (!process) return;
+  const step = form.elements.namedItem("sapStep");
+  function updateContextLabel() {
+    $("sap-context-label").textContent = t(sapStepContext[step.value] ?? "Organisation und Belegreferenz");
+  }
+  process.onchange = () => {
+    step.innerHTML = options(["", ...(sapSteps[process.value] ?? [])], "", value => t(value || "Noch nicht bekannt"));
+    updateContextLabel();
+  };
+  step.onchange = updateContextLabel;
+}
+
 function openNew() {
   show(t("TICKETANLAGE · IT"), t("Neues Anliegen"), '<form id="edit"><div class="grid">' +
     field("Betreff", "title", "", "required maxlength=120") +
@@ -232,7 +278,7 @@ function openNew() {
     select("Servicebereich", "area", areas, "IT") +
     select("Servicekatalog", "catalogItem", ["", ...Object.keys(catalog)], "", value => t(value || "Vorlage auswählen (optional)")) +
     select("Anliegenstyp", "type", isAgent() ? types : types.slice(0,5), types[0]) +
-    field("System oder Gerät", "system", "", "maxlength=120") +
+    '<div id="sap-process" class="wide"></div>' + field("System oder Gerät", "system", "", "maxlength=120") +
     select("Betroffener Service", "service", ["Noch nicht bekannt", ...services], "Noch nicht bekannt") +
     select("Dringlichkeit (Einschätzung)", "urgency", ["Niedrig", "Normal", "Hoch", "Sofort"], "Normal") +
     '<section class="wide intake-context"><p id="intake-hint" class="muted" aria-live="polite"></p><div id="intake-fields" class="grid"></div></section>' +
@@ -293,14 +339,18 @@ function openNew() {
     servicePicker.innerHTML = options(["Noch nicht bekannt", ...areaServices[areaPicker.value]], "Noch nicht bekannt");
     renderIntake();
   };
+  let generatedTitle = "";
   catalogPicker.onchange = () => {
     const template = catalog[catalogPicker.value];
     if (template) {
-      type.value = types[2];
+      type.value = template.type ?? types[2];
       servicePicker.value = template.service;
-      if (!titleInput.value.trim()) titleInput.value = t(catalogPicker.value);
+      if (!titleInput.value.trim() || titleInput.value === generatedTitle) {
+        generatedTitle = form.elements.namedItem("sourceLanguage").value === getLanguage() ? t(catalogPicker.value) : "";
+        titleInput.value = generatedTitle;
+      }
     }
-    renderIntake();
+    renderIntake(template);
   };
   servicePicker.onchange = () => {
     if (catalog[catalogPicker.value]?.service !== servicePicker.value) catalogPicker.value = "";
@@ -313,7 +363,18 @@ function openNew() {
     const articles = matchingArticles(tickets,servicePicker.value,titleInput.value,areaPicker.value);
     $("knowledge-suggestions").innerHTML = articles.length ? '<div class="intake-context"><p class="rich-label">' + esc(t("Passende Hilfeartikel")) + '</p>' + articles.map(article => '<details><summary>' + esc(article.title) + '</summary><p class="rich-text">' + esc(article.body) + '</p></details>').join("") + '</div>' : "";
   }
-  function renderIntake() {
+  function renderIntake(template) {
+    const processField = $("sap-process");
+    const fields = form.elements;
+    const process = template?.process ?? fields.namedItem("sapProcess")?.value ?? "";
+    const step = template?.step ?? fields.namedItem("sapStep")?.value ?? "";
+    const context = fields.namedItem("sapContext")?.value ?? "";
+    const app = fields.namedItem("sapApp")?.value ?? "";
+    const error = fields.namedItem("sapError")?.value ?? "";
+    const isSap = servicePicker.value === "ERP";
+    processField.hidden = !isSap;
+    processField.innerHTML = isSap ? sapFields(process, step, context, app, error) : "";
+    if (isSap) bindSapFields(form);
     renderKnowledge();
     drafts.set(shown, Object.fromEntries([...$("intake-fields").querySelectorAll("[name]")].map(control => [control.name, control.value])));
     shown = type.value;
@@ -341,7 +402,7 @@ function openNew() {
     ).join("");
   }
   type.onchange = () => {
-    if (type.value !== types[2]) catalogPicker.value = "";
+    if ((catalog[catalogPicker.value]?.type ?? types[2]) !== type.value) catalogPicker.value = "";
     renderIntake();
   };
   renderIntake();
@@ -354,14 +415,14 @@ function openNew() {
       $("error").textContent = t("Bitte Betreff, anfragende Person und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.");
       return;
     }
-    const {title, description, type, service, urgency, department, requester, requesterName, sourceLanguage, catalogItem, outageTarget, system, area, ...answers} = fields;
+    const {title, description, type, service, urgency, department, requester, requesterName, sourceLanguage, catalogItem, outageTarget, system, area, sapProcess, sapStep, sapContext, sapApp, sapError, ...answers} = fields;
     const incident = type === types[1] && activeOutages(tickets.filter(item => (item.area || "IT") === area), service).find(item => String(item.number) === outageTarget);
     if (incident && tickets.some(item => item.relatedOutage === incident.number && item.requester === requesterValue)) {
       $("error").textContent = t("Du hast dich für diese Störung bereits als betroffen gemeldet.");
       return;
     }
     const intakeAnswers = Object.fromEntries(Object.entries(answers).filter(([,value]) => value));
-    const ticket = {title, requester: requesterValue, department: person?.department ?? (department === "Alle Abteilungen" ? "" : department), description, type, service, urgency, sourceLanguage, catalogItem, system, area, intakeAnswers, createdAt:new Date().toISOString(), relatedOutage: incident ? incident.number : null, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
+    const ticket = {title, requester: requesterValue, department: person?.department ?? (department === "Alle Abteilungen" ? "" : department), description, type, service, urgency, sourceLanguage, catalogItem, system, area, sapProcess, sapStep, sapContext, sapApp, sapError, intakeAnswers, createdAt:new Date().toISOString(), relatedOutage: incident ? incident.number : null, number: Math.max(0, ...tickets.map(t => t.number)) + 1,
       descriptionFormat: editor.getFormat(), attachments: attachments(),
       status: statuses[0], priority: priorities[1], decision: decisions[0],
       reference: "", rationale: "", owner:catalog[catalogItem]?.owner ?? "", history: [systemEvent("Ticket angelegt")]};
@@ -612,6 +673,8 @@ function openTicket(ticket) {
     (ticket.rationale ? '<p><strong>' + esc(t("Projektbegründung")) + '</strong> · ' + readingText(ticket.rationale,ticket.rationaleLanguage) + '</p>' : '') +
     (ticket.delivery ? '<p><strong>' + esc(t("Ziel der Umsetzung")) + '</strong> · ' + readingText(ticket.delivery.goal,ticket.delivery.language) +
       '</p><p><strong>' + esc(t("Abnahmekriterien")) + '</strong> · ' + readingText(ticket.delivery.criteria,ticket.delivery.language) + '</p>' : '') +
+    (ticket.sapStep ? '<p><strong>' + esc(t("Prozessschritt")) + '</strong> · ' + esc(t(ticket.sapStep)) + '</p>' : '') +
+    (ticket.sapProcess ? '<p><strong>' + esc(t("SAP-Geschäftsprozess")) + '</strong> · ' + esc(t(ticket.sapProcess)) + '</p>' : '') +
     (ticket.catalogItem ? '<p><strong>' + esc(t("Servicekatalog")) + '</strong> · ' + esc(t(ticket.catalogItem)) + '</p>' : '') +
     Object.entries(ticket.intakeAnswers ?? {}).map(([name,value]) =>
       '<p><strong>' + esc(t(intakeLabels[name] ?? name)) + '</strong> · ' + esc(name === "needed" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat(getLanguage(), {dateStyle:"medium", timeZone:"UTC"}).format(new Date(value)) : t(value)) + '</p>'
@@ -620,6 +683,9 @@ function openTicket(ticket) {
     (ticket.type === "Problem" ? '<label class="wide">' + esc(t("Ursachenanalyse")) +
       '<textarea name="rootCause" rows="3" maxlength="3000">' + esc(ticket.rootCause) + '</textarea></label>' : '') + select("Bearbeitungsstatus", "status", statuses, ticket.status) +
     select("Priorität", "priority", priorities, ticket.priority) + field("Begründung bei Prioritätswechsel", "priorityReason", "", "maxlength=500") +
+    (ticket.service === "ERP" ? '<fieldset class="wide feature-group"><legend>' + esc(t("SAP S/4HANA")) +
+      '</legend>' + sapFields(ticket.sapProcess, ticket.sapStep, ticket.sapContext, ticket.sapApp, ticket.sapError) +
+      select("SAP-Komponente", "sapComponent", ["", ...sapComponents], ticket.sapComponent, value => t(value || "Noch nicht bekannt")) + '</fieldset>' : "") +
     field("System oder Gerät", "system", ticket.system, "maxlength=120") + field("Zuständige Person", "owner", ticket.owner, "maxlength=100") +
     (suggested ? '<div class="wide intake-context"><p>' +
       esc(t("Prioritätsvorschlag aus Auswirkung und Dringlichkeit: {priority}", {priority:t(suggested)})) +
@@ -662,6 +728,7 @@ function openTicket(ticket) {
       $("handoff-status").textContent = t("Kopieren nicht möglich.");
     }
   };
+  bindSapFields($("edit"));
   bindAgentTools(ticket);
   const attachments = bindAttachments(ticket.attachments);
   const removedLinks = new Set();
@@ -705,10 +772,10 @@ function openTicket(ticket) {
       $("error").textContent = t("Zum Veröffentlichen muss das Ticket abgeschlossen sein. Titel und Lösungsweg sind Pflicht.");
       return;
     }
-    const labels = {rootCause:"Ursachenanalyse",system:"System oder Gerät",type:"Anliegenstyp", status:"Status", priority:"Priorität", owner:"Zuständigkeit", decision:"Projektentscheidung", reference:"Projektreferenz", rationale:"Projektbegründung", kanbanUrl:"Link zur Kanban-Karte"};
+    const labels = {sapStep:"Prozessschritt",sapContext:"Organisation und Belegreferenz",sapApp:"Fiori-App oder Transaktion",sapError:"Fehlermeldung",sapComponent:"SAP-Komponente",sapProcess:"SAP-Geschäftsprozess",rootCause:"Ursachenanalyse",system:"System oder Gerät",type:"Anliegenstyp", status:"Status", priority:"Priorität", owner:"Zuständigkeit", decision:"Projektentscheidung", reference:"Projektreferenz", rationale:"Projektbegründung", kanbanUrl:"Link zur Kanban-Karte"};
     const history = Object.keys(fields).filter(name => fields[name] !== (ticket[name] ?? "")).map(name =>
       systemEvent("{field} geändert: {before} → {after}", {field:labels[name], before:ticket[name] || "–", after:fields[name] || "–"},
-        ["type","status","priority","decision"].includes(name) ? ["field","before","after"] : ["field"]));
+        ["type","status","priority","decision","sapProcess","sapStep"].includes(name) ? ["field","before","after"] : ["field"]));
     if (fields.priority !== ticket.priority && priorityReason) history.push(systemEvent("Prioritätsbegründung: {note}", {note:priorityReason, language:getLanguage()}));
     if (articleMode) history.push(systemEvent(articleMode === "publish" ? "Hilfeartikel veröffentlicht" : "Hilfeartikel zurückgezogen"));
     if (note) history.push(systemEvent("{kind}: {note}", {kind:noteKind,note,author:$("actor").value,language:noteLanguage}, ["kind"]));

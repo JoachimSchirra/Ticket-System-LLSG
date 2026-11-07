@@ -361,11 +361,51 @@ Meine IT-Aufgaben|My IT tasks|Le mie attività IT|Mis tareas de TI
 Bereits versucht|Already tried|Tentativi effettuati|Ya intentado
 Zusage|Commitment|Impegno|Compromiso
 Zusagen|Commitments|Impegni|Compromisos
+SAP-Geschäftsprozess|SAP business process|Processo aziendale SAP|Proceso empresarial SAP
+Prozessschritt|Process step|Fase del processo|Paso del proceso
+SAP-Komponente|SAP component|Componente SAP|Componente SAP
+Beschaffung bis Zahlung|Procure to pay|Dall’acquisto al pagamento|De la compra al pago
+Bestellung anlegen oder freigeben|Create or approve a purchase order|Crea o approva un ordine di acquisto|Crear o aprobar un pedido de compra
+Wareneingang buchen|Post goods receipt|Registra entrata merci|Contabilizar entrada de mercancías
+Qualitätsprüfung durchführen|Perform quality inspection|Esegui controllo qualità|Realizar inspección de calidad
+Lieferantenrechnung prüfen oder buchen|Check or post supplier invoice|Verifica o registra fattura fornitore|Verificar o contabilizar factura de proveedor
+Auftrag bis Zahlung|Order to cash|Dall’ordine all’incasso|Del pedido al cobro
+Kundenauftrag bearbeiten|Process sales order|Elabora ordine cliente|Procesar pedido de cliente
+Lieferung und Warenausgang|Delivery and goods issue|Consegna e uscita merci|Entrega y salida de mercancías
+Fakturierung|Billing|Fatturazione|Facturación
+Finanzabschluss|Financial close|Chiusura contabile|Cierre financiero
+Sachkontenbuchung|General ledger posting|Registrazione in contabilità generale|Contabilización en el libro mayor
+Abschluss und Abstimmung|Close and reconciliation|Chiusura e riconciliazione|Cierre y conciliación
+Planung und Produktion|Planning and production|Pianificazione e produzione|Planificación y producción
+Materialbedarf planen|Plan material requirements|Pianifica il fabbisogno di materiali|Planificar necesidades de materiales
+Fertigungsauftrag bearbeiten|Process production order|Elabora ordine di produzione|Procesar orden de fabricación
+Technischer Betrieb|Technical operations|Operazioni tecniche|Operaciones técnicas
+Schnittstelle oder Hintergrundjob|Interface or background job|Interfaccia o job in background|Interfaz o tarea en segundo plano
+Bestellung oder Bestellanforderung|Purchase order or purchase requisition|Ordine o richiesta di acquisto|Pedido o solicitud de compra
+Werk und Bestellposition|Plant and purchase order item|Divisione e posizione dell’ordine|Centro y posición del pedido
+Werk und Prüflos|Plant and inspection lot|Divisione e lotto di controllo|Centro y lote de inspección
+Buchungskreis und Rechnungsreferenz|Company code and invoice reference|Società e riferimento fattura|Sociedad y referencia de factura
+Organisation und Belegreferenz|Organisational unit and document reference|Unità organizzativa e riferimento documento|Unidad organizativa y referencia del documento
+Fiori-App oder Transaktion|Fiori app or transaction|App Fiori o transazione|Aplicación Fiori o transacción
+Fehlermeldung|Error message|Messaggio di errore|Mensaje de error
+Lieferantenrechnung kann nicht gebucht werden|Supplier invoice cannot be posted|Impossibile registrare la fattura fornitore|No se puede contabilizar la factura de proveedor
+Wareneingang kann nicht gebucht werden|Goods receipt cannot be posted|Impossibile registrare l’entrata merci|No se puede contabilizar la entrada de mercancías
+Prüflos fehlt oder Verwendungsentscheid ist blockiert|Inspection lot missing or usage decision blocked|Lotto di controllo mancante o decisione di impiego bloccata|Falta el lote de inspección o está bloqueada la decisión de empleo
+Freigaberegel für Bestellungen ändern|Change the purchase order approval rule|Modifica regola di approvazione ordini|Cambiar regla de aprobación de pedidos
+SAP-Schnittstelle oder Hintergrundjob gestört|SAP interface or background job failed|Problema con interfaccia o job SAP|Incidencia en interfaz o tarea SAP
+Nenne die benötigte SAP-Rolle, das Zielsystem und den Gültigkeitszeitraum.|Specify the required SAP role, target system and validity period.|Indica il ruolo SAP, il sistema e il periodo di validità.|Indica el rol SAP, el sistema de destino y el periodo de validez.
+Nenne den Buchungskreis, die Fiori-App oder Transaktion und die genaue Fehlermeldung.|Provide the company code, Fiori app or transaction and exact error message.|Indica la società, l’app Fiori o transazione e il messaggio di errore esatto.|Indica la sociedad, la aplicación Fiori o transacción y el mensaje de error exacto.
+Nenne Werk, Bestellposition und Fehlermeldung beim Wareneingang.|Provide the plant, purchase order item and goods receipt error.|Indica divisione, posizione dell’ordine ed errore in entrata merci.|Indica el centro, la posición del pedido y el error en la entrada de mercancías.
+Nenne Werk, Prüflos und den Schritt, an dem die Qualitätsprüfung stockt.|Provide the plant, inspection lot and step where inspection stops.|Indica divisione, lotto di controllo e fase in cui il controllo si blocca.|Indica el centro, el lote y el paso donde se bloquea la inspección.
+Beschreibe den heutigen Freigabeweg, die gewünschte Regel und ein Abnahmebeispiel.|Describe the current approval flow, desired rule and an acceptance example.|Descrivi il flusso attuale, la regola desiderata e un esempio di accettazione.|Describe el flujo actual, la regla deseada y un ejemplo de aceptación.
+Nenne Schnittstelle oder Job, Zeitpunkt und die Auswirkung auf den Geschäftsprozess.|Provide the interface or job, time and business impact.|Indica interfaccia o job, orario e impatto sul processo.|Indica la interfaz o tarea, la hora y el impacto en el proceso.
 `;
 const dictionary = new Map(rows.trim().split("\n").map(row => {
   const [key, en, it, es] = row.split("|");
   return [key, {en, it, es}];
 }));
+dictionary.set("ERP", {de:"SAP S/4HANA", en:"SAP S/4HANA", it:"SAP S/4HANA", es:"SAP S/4HANA"});
+dictionary.set("ERP-Berechtigung", {de:"SAP-Berechtigung beantragen", en:"Request SAP access", it:"Richiedi accesso SAP", es:"Solicitar acceso a SAP"});
 export const languages = {de:"Deutsch", en:"English", it:"Italiano", es:"Español"};
 const languageKey = "llsg.interface-language";
 let language = "de";
@@ -399,6 +439,7 @@ export function localize(root) {
     for (const [name, value] of Object.entries(attrs)) element.setAttribute(name, t(value));
   }
 }
+
 
 
 
