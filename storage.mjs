@@ -62,8 +62,10 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
   let files = [...initial];
   const sessions = officeSessions;
   const imported = new Map();
-  const report = key => { id("attachment-status").textContent = t(key); };
   const picker = id("attachment-picker"), zone = id("dropzone"), list = id("attachments");
+  const section = zone.parentElement;
+  const status = id("attachment-status");
+  const report = (key, values) => { status.textContent = t(key, values); };
   function render() {
     list.replaceChildren();
     for (const file of files) {
@@ -79,7 +81,12 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
       remove.dataset.uiKey = "Entfernen";
       remove.textContent = t("Entfernen");
       remove.setAttribute("aria-label", t("Entfernen") + " " + file.name);
-      remove.onclick = () => { files = files.filter(item => item !== file); render(); };
+      remove.onclick = () => {
+        files = files.filter(item => item !== file);
+        picker.value = "";
+        status.textContent = "";
+        render();
+      };
       const extension = /\.(docx|xlsx|pptx)$/i.exec(file.name)?.[1].toLowerCase();
       const link = document.createElement("a");
       link.href = "#";
@@ -149,7 +156,10 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
     const before = files.length;
     let total = files.reduce((sum, file) => sum + file.size, 0);
     for (const file of selection) {
-      if (files.some(item => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified)) continue;
+      if (files.some(item => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified)) {
+        issues.push(t("{file} ist bereits angehängt.", {file:file.name}));
+        continue;
+      }
       if (file.size > maxFileSize || total + file.size > maxTicketSize) {
         issues.push(t("{file} überschreitet das Größenlimit.", {file:file.name}));
         continue;
@@ -157,22 +167,38 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
       files.push(file);
       total += file.size;
     }
-    id("attachment-status").textContent = issues.join(" ");
+    status.textContent = issues.join(" ");
     render();
     return files.length > before;
   }
   picker.onchange = () => { add(picker.files); picker.value = ""; };
-  zone.ondragover = (event) => {
-    if (!event.dataTransfer.types.includes("Files")) return;
+  const carriesFiles = transfer => transfer && (
+    Array.from(transfer.types).includes("Files") ||
+    Array.from(transfer.items ?? []).some(item => item.kind === "file")
+  );
+  section.addEventListener("dragover", event => {
+    if (!carriesFiles(event.dataTransfer)) return;
     event.preventDefault();
+    event.dataTransfer.dropEffect = "copy";
     zone.dataset.active = "";
-  };
-  zone.ondragleave = (event) => { if (!zone.contains(event.relatedTarget)) delete zone.dataset.active; };
-  zone.ondrop = (event) => {
+  }, true);
+  section.addEventListener("dragleave", event => {
+    if (!section.contains(event.relatedTarget)) delete zone.dataset.active;
+  });
+  section.addEventListener("drop", event => {
     event.preventDefault();
     delete zone.dataset.active;
-    add(event.dataTransfer.files);
-  };
+    const transfer = event.dataTransfer;
+    const dropped = Array.from(transfer?.files ?? []);
+    if (!dropped.length) {
+      for (const item of transfer?.items ?? []) {
+        const file = item.kind === "file" ? item.getAsFile() : null;
+        if (file) dropped.push(file);
+      }
+    }
+    if (dropped.length) add(dropped);
+    else report("Keine Datei erkannt. Wähle die Datei über „Dateien auswählen“ aus.");
+  }, true);
   render();
   return Object.assign(() => [...files], {
     addFile: file => add([file]),

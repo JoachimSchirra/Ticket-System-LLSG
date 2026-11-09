@@ -436,6 +436,8 @@ Im Anliegenportal sichtbar|Visible in the request portal|Visibile nel portale de
 Nur in der IT-Ansicht sichtbar|Visible in the IT workspace only|Visibile solo nell’area IT|Visible solo en el área de TI
 Speichern übernimmt Änderungen aus allen Reitern.|Save applies changes from all tabs.|Il salvataggio applica le modifiche di tutte le schede.|Guardar aplica los cambios de todas las pestañas.
 Bitte gib eine Nachricht mit 1 bis 1.200 Zeichen ein.|Enter a message between 1 and 1,200 characters.|Inserisci un messaggio tra 1 e 1.200 caratteri.|Introduce un mensaje de entre 1 y 1200 caracteres.
+{file} ist bereits angehängt.|{file} is already attached.|{file} è già allegato.|{file} ya está adjunto.
+Keine Datei erkannt. Wähle die Datei über „Dateien auswählen“ aus.|No file detected. Use the file picker to select it.|Nessun file rilevato. Seleziona il file con il pulsante di selezione.|No se detectó ningún archivo. Selecciónalo con el botón de selección.
 Änderungen übernehmen|Import changes|Importa modifiche|Importar cambios
 Für diese Datei gibt es bereits eine Arbeitskopie.|A working copy already exists for this file.|Esiste già una copia di lavoro per questo file.|Ya existe una copia de trabajo de este archivo.
 Datei in Office speichern und schließen. Danach Änderungen übernehmen.|Save and close the file in Office. Then import changes.|Salva e chiudi il file in Office. Poi importa le modifiche.|Guarda y cierra el archivo en Office. Después importa los cambios.
