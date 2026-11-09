@@ -160,3 +160,29 @@ label[hidden] { display:none; }
   .dialog-head { flex-wrap: wrap; }
   .dialog-actions { justify-content: flex-start; }
 }
+.ticket-workspace[open] { display:flex; flex-direction:column; width:min(1060px, calc(100% - 24px)); height:min(850px, calc(100dvh - 28px)); max-height:calc(100dvh - 28px); overflow:hidden; }
+.ticket-workspace .dialog-head { flex:none; }
+.ticket-workspace #content { flex:1; min-height:0; padding:0; }
+.ticket-workspace #edit { height:100%; display:grid; grid-template-rows:auto auto minmax(0,1fr) auto auto auto; }
+.workspace-facts { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; padding:10px 16px; margin:0; }
+.workspace-facts > div { padding:6px 10px; border-radius:6px; background:#f5f7fa; min-width:0; overflow-wrap:anywhere; }
+.workspace-facts dt { color:var(--muted); font-size:.78rem; }
+.workspace-facts dd { margin:0; font-weight:650; }
+.ticket-tabs { display:flex; gap:4px; overflow-x:auto; padding:0 16px 6px; border-bottom:1px solid var(--line); }
+.ticket-tabs button { flex:none; white-space:nowrap; background:#f5f7fa; border-color:transparent; }
+.ticket-tabs button[aria-selected="true"] { background:var(--navy); color:white; }
+.ticket-tabs small { margin-inline-start:5px; font-variant-numeric:tabular-nums; }
+.ticket-panel { min-height:0; overflow:auto; padding:16px; overscroll-behavior:contain; }
+.ticket-panel[hidden] { display:none; }
+.ticket-panel > .feature-group + .feature-group { margin-top:12px; }
+.workspace-save-hint { margin:0; padding:5px 16px 0; font-size:.82rem; color:var(--muted); border-top:1px solid var(--line); }
+.ticket-workspace #error { margin:0; padding-inline:16px; }
+.ticket-workspace #edit > footer { margin:0; padding:8px 16px; }
+.note-composer { padding:12px; border:1px solid var(--line); border-radius:8px; }
+.note-composer .audience { margin:0 0 10px; color:var(--navy); font-weight:650; }
+.note-internal { background:#fff7e7; border-color:#dbbc83; }
+.note-public { background:#eef5fb; }
+.note-composer .rich-editor { min-height:90px; }
+.ticket-timeline { display:grid; gap:8px; list-style:none; padding:0; margin:12px 0 0; }
+.ticket-timeline li { padding:10px 12px; border:1px solid var(--line); border-radius:8px; overflow-wrap:anywhere; }
+.ticket-timeline [data-reading-text], .history [data-reading-text] { white-space:pre-wrap; }

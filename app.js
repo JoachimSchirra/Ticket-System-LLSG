@@ -252,7 +252,8 @@ function render() {
   });
 }
 
-function show(kicker, title, body) {
+function show(kicker, title, body, workspace = false) {
+  $("dialog").classList.toggle("ticket-workspace", workspace);
   $("dialog-reading-language").replaceChildren();
   $("edit-ticket").hidden = true;
   $("edit-ticket").onclick = null;
@@ -299,11 +300,11 @@ function bindSapFields(form) {
   step.onchange = updateContextLabel;
 }
 
-function descriptionEditorMarkup() {
-  return '<section class="wide"><p id="description-label" class="rich-label">' + uiText("Beschreibung") + '</p>' +
-    '<div class="rich-editor-group"><div id="description-toolbar" class="rich-toolbar" role="group" aria-label="' + esc(t("Beschreibung formatieren")) + '"></div>' +
-    '<div id="description-editor" class="rich-editor rich-text" contenteditable="true" role="textbox" aria-multiline="true" aria-required="true" aria-labelledby="description-label"></div></div>' +
-    '<textarea hidden id="description-input" name="description"></textarea><p id="description-status" class="rich-editor-status" role="status"></p></section>';
+function editorMarkup(name, label) {
+  return '<section class="wide"><p id="' + name + '-label" class="rich-label">' + uiText(label) + '</p>' +
+    '<div class="rich-editor-group"><div id="' + name + '-toolbar" class="rich-toolbar" role="group" data-ui-aria-label="' + esc(label) + '" aria-label="' + esc(t(label)) + '"></div>' +
+    '<div id="' + name + '-editor" class="rich-editor rich-text" contenteditable="true" role="textbox" aria-multiline="true" aria-labelledby="' + name + '-label"></div></div>' +
+    '<textarea hidden id="' + name + '-input" name="' + name + '"></textarea><p id="' + name + '-status" class="rich-editor-status" role="status"></p></section>';
 }
 
 const businessContextLabels = {
@@ -335,15 +336,17 @@ function businessContextDisplay(ticket) {
   return rows.length ? '<dl class="ticket-facts">' + rows.join("") + '</dl>' : "";
 }
 
-function bindDescriptionEditor(ticket) {
+function bindEditor(name, text = "", format) {
   const editor = createRichEditor({
-    box: $("description-editor"), toolbar: $("description-toolbar"),
-    field: $("description-input"), status: $("description-status")
+    box: $(name + "-editor"), toolbar: $(name + "-toolbar"),
+    field: $(name + "-input"), status: $(name + "-status")
   });
-  editor.setValue(ticket?.description ?? "", ticket?.descriptionFormat);
+  editor.setValue(text, format);
   $("dialog").addEventListener("close", () => editor.dispose(), {once:true});
   return editor;
 }
+
+const bindDescriptionEditor = ticket => bindEditor("description", ticket?.description, ticket?.descriptionFormat);
 
 function openNew() {
   show(t("TICKETANLAGE · IT"), t("Neues Anliegen"), '<form id="edit"><div class="grid">' +
@@ -359,7 +362,7 @@ function openNew() {
     select("Betroffener Service", "service", ["Noch nicht bekannt", ...services], "Noch nicht bekannt") +
     select("Dringlichkeit (Einschätzung)", "urgency", reportedUrgencies, "Normal") +
     '<section class="wide intake-context"><p id="intake-hint" class="muted" aria-live="polite"></p><div id="intake-fields" class="grid"></div></section>' +
-    descriptionEditorMarkup() + businessContextFields() +
+    editorMarkup("description", "Beschreibung") + businessContextFields() +
     '<div id="knowledge-suggestions" class="wide"></div><div id="outage-suggestions" class="wide"></div>' + evidenceForm() +
     attachmentsForm() + '</div>' + formEnd());
   $("dialog-title").dataset.uiKey = "Neues Anliegen";
@@ -503,7 +506,7 @@ function openNew() {
       }
       $("actor").value = ticket.requester;
     }
-    await submit(e.target, [...tickets, ticket], t("{ticket} wurde angelegt.", {ticket:number(ticket)}));
+    if (await submit(e.target, [...tickets, ticket], t("{ticket} wurde angelegt.", {ticket:number(ticket)}))) attachments.commit();
   };
 }
 
@@ -512,7 +515,9 @@ async function submit(form, next, message) {
   if (button.disabled) return;
   button.disabled = true;
   try {
-    if (await save(next, form.querySelector("[data-edit-error]") ?? $("error"))) complete(message);
+    if (!await save(next, form.querySelector("[data-edit-error]") ?? $("error"))) return false;
+    complete(message);
+    return true;
   } finally {
     button.disabled = false;
   }
@@ -575,7 +580,7 @@ function portalEditMarkup(ticket) {
     field("System oder Gerät", "system", ticket.system, "maxlength=120") +
     '<div id="portal-sap-fields" class="wide"' + (ticket.service === "ERP" ? "" : " hidden") + '>' +
     (ticket.service === "ERP" ? sapFields(ticket.sapProcess,ticket.sapStep,ticket.sapContext,ticket.sapApp,ticket.sapError) : "") + '</div>' +
-    descriptionEditorMarkup() + businessContextFields(ticket) + evidenceForm() + attachmentsForm() +
+    editorMarkup("description", "Beschreibung") + businessContextFields(ticket) + evidenceForm() + attachmentsForm() +
     '</div><p data-edit-error class="error" role="alert"></p><footer><button type="submit" class="primary">' +
     uiText("Änderungen speichern") + '</button></footer></form></details>';
 }
@@ -643,15 +648,19 @@ function bindPortalEditor(ticket) {
     const updated = {...ticket, ...fields, catalogItem:catalogueChanged ? "" : ticket.catalogItem,
       sapComponent:fields.service === "ERP" ? ticket.sapComponent : "", descriptionFormat, attachments:files, businessContextLanguages, history,
       requesterEditedAt:new Date().toISOString()};
-    await submit(form, tickets.map(item => item.number === ticket.number ? updated : item),
-      t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}));
+    if (await submit(form, tickets.map(item => item.number === ticket.number ? updated : item),
+      t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}))) attachments.commit();
   };
 }
+
+const publicNoteKinds = ["Rückfrage", "Antwort"];
+const isTicketNote = entry => entry.key === "{kind}: {note}";
+const isPublicNote = entry => isTicketNote(entry) && publicNoteKinds.includes(entry.values?.kind);
 
 function openPortalTicket(ticket) {
   if (ticket.requester !== $("actor").value) return;
   const conversation = ticket.history.filter(entry =>
-    entry.key === "{kind}: {note}" && ["Rückfrage","Antwort"].includes(entry.values?.kind));
+    isPublicNote(entry));
   const attachments = (ticket.attachments ?? []).map((file, index) =>
     '<li><button type="button" data-download="' + index + '">' + uiText("Herunterladen") + esc(" · " + file.name) + '</button></li>').join("");
   show(number(ticket), ticket.title,
@@ -667,11 +676,11 @@ function openPortalTicket(ticket) {
       '</span><span class="fact-edit-action" id="fact-action-' + name + '">' + uiText("Ändern") + '</span></button></dd></div>').join("") + '</dl>' + businessContextDisplay(ticket) + portalEditMarkup(ticket) + actionDisplay(ticket, true) + outageUpdates(ticket) + translationPanel(ticket) + (attachments ? '<h3>' + uiText("Anhänge") + '</h3><ul id="portal-attachments">' + attachments + '</ul>' : '') +
     '<section class="history"><h3>' + uiText("Kommunikation") + '</h3><ul>' +
     conversation.map(entry => '<li><small class="muted">' + esc(date(entry.at)) + '</small> · ' +
-      uiText(entry.values.kind) + esc(" · " + (entry.values.author ? entry.values.author + ": " : "")) + readingText(entry.values.note,entry.values.language) + '</li>').join("") +
+      uiText(entry.values.kind) + esc(" · " + (entry.values.author ? entry.values.author + ": " : "")) + readingText(entry.values.note,entry.values.language,entry.values.format) + '</li>').join("") +
     '</ul></section><form id="edit">' +
     select("Sprache deiner neuen Nachricht", "noteLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
-    '<label>' + uiText("Antwort") +
-    '<textarea name="note" rows="3" maxlength="1200" required></textarea></label>' + formEnd("Antwort senden"));
+    editorMarkup("note", "Antwort") + formEnd("Antwort senden"));
+  const replyEditor = bindEditor("note");
   appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
   bindTranslation(ticket, switchLanguage);
   bindPortalEditor(ticket);
@@ -715,9 +724,12 @@ function openPortalTicket(ticket) {
   };
   $("edit").onsubmit = async event => {
     event.preventDefault();
-    const note = event.target.elements.namedItem("note").value.trim();
-    if (!note) return;
-    const entry = systemEvent("{kind}: {note}", {kind:"Antwort",note,author:$("actor").value,language:event.target.elements.namedItem("noteLanguage").value}, ["kind"]);
+    const note = event.target.elements.namedItem("note").value;
+    if (!note.trim() || note.length > 1200) {
+      $("error").textContent = t("Bitte gib eine Nachricht mit 1 bis 1.200 Zeichen ein.");
+      return;
+    }
+    const entry = systemEvent("{kind}: {note}", {kind:"Antwort",note,format:replyEditor.getFormat(),author:$("actor").value,language:event.target.elements.namedItem("noteLanguage").value}, ["kind"]);
     const updated = {...ticket, history:[...ticket.history,entry]};
     await submit(event.target, tickets.map(item => item.number === ticket.number ? updated : item),
       t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}));
@@ -726,7 +738,7 @@ function openPortalTicket(ticket) {
 
 function historyEntryText(entry) {
   const values = entry.values ?? {};
-  if (values.note) return uiText(values.kind || "Begründung bei Prioritätswechsel") + ": " + readingText(values.note,values.language);
+  if (values.note) return uiText(values.kind || "Begründung bei Prioritätswechsel") + ": " + readingText(values.note,values.language,values.format);
   if (values.reason) return uiText(values.status) + esc(" · " + values.person + ": ") + readingText(values.reason,values.language);
   if (!entry.key) return readingText(entry.text);
   return uiText(entry.key, values, entry.localized);
@@ -736,7 +748,7 @@ function agentTools(ticket) {
   const affected = tickets.filter(item => item.relatedOutage === ticket.number);
   const teams = [...new Set(affected.map(item => item.department).filter(Boolean))];
   const group = (label, content) => '<fieldset class="wide feature-group"><legend>' + uiText(label) + '</legend><div class="grid">' + content + '</div></fieldset>';
-  return group("Servicefristen und Wissen",
+  return {operations: group("Servicefristen und Wissen",
     '<ul class="wide">' + serviceDeadlines(ticket).map(item => '<li><strong>' + uiText(item.label) + '</strong> · ' +
       esc(date(item.due)) + ' · ' + uiText(item.status) + '</li>').join("") + '</ul>' +
     '<p class="wide muted">' + uiText("Demo-Fristen laufen rund um die Uhr. Eine Fristwarnung priorisiert das Ticket in der Warteschlange.") + '</p>' +
@@ -750,8 +762,8 @@ function agentTools(ticket) {
     select("Wissensartikel", "articleMode", ["","publish","remove"], "", value =>
       t({publish:"Hilfeartikel veröffentlichen",remove:"Hilfeartikel zurückziehen"}[value] ?? "Keine Änderung")) +
     field("Artikeltitel", "articleTitle", ticket.article?.title, "maxlength=120") +
-    '<label class="wide">' + uiText("Öffentlicher Lösungsweg") + '<textarea name="articleBody" rows="3" maxlength="3000">' + esc(ticket.article?.body) + '</textarea></label>') +
-    group("Test und Abnahme",
+    '<label class="wide">' + uiText("Öffentlicher Lösungsweg") + '<textarea name="articleBody" rows="3" maxlength="3000">' + esc(ticket.article?.body) + '</textarea></label>'),
+    delivery: group("Test und Abnahme",
     field("Bitte um einen Funktionstest", "actionRequest", "", "maxlength=500") +
     select("Kanban-Aktion", "deliveryMode", ["","prepare","accept"], "", value =>
       t({prepare:"Übergabe vorbereiten",accept:"Abnahme anfordern"}[value] ?? "Keine Änderung")) +
@@ -762,8 +774,8 @@ function agentTools(ticket) {
     (ticket.delivery ? '<div class="wide kanban-actions"><button type="button" id="preview-delivery">' + uiText("Kanban-Entwurf prüfen") +
       '</button><a href="http://127.0.0.1:8090/" target="_blank" rel="noopener noreferrer">' + uiText("Kanban-Board öffnen") + '</a></div>' +
       '<div class="wide" id="delivery-preview" hidden><pre id="delivery-text"></pre><button type="button" id="copy-delivery">' + uiText("Entwurf kopieren") +
-      '</button><p id="delivery-copy-status" role="status"></p></div>' : '')) +
-    group("Sammelstörung",
+      '</button><p id="delivery-copy-status" role="status"></p></div>' : '')),
+    outage: group("Sammelstörung",
       select("Sammelstörungsaktion", "outageMode", ["","publish","resolve"], "", value =>
         t({publish:"Als Sammelstörung veröffentlichen",resolve:"Sammelstörung beenden"}[value] ?? "Keine Änderung")) +
       field("Öffentlicher Störungstitel", "outageTitle", ticket.outage?.title, "maxlength=120") +
@@ -771,14 +783,14 @@ function agentTools(ticket) {
       (ticket.outage ? '<p class="wide">' + uiText(ticket.outage.active ? "Sammelstörung aktiv" : "Sammelstörung beendet") + ' · ' +
         uiText("{count} betroffene Personen", {count:new Set(affected.map(item => item.requester)).size}) + ' ' + teams.map(team => uiText(team)).join(", ") + '</p>' +
         (affected.length ? '<ul class="wide">' + affected.map(item => '<li><button type="button" data-affected="' + item.number + '">' +
-          esc(number(item) + " · " + item.requester + " · " + item.title) + '</button></li>').join("") + '</ul>' : '') : '')) +
-    group("Diagnose und Schichtübergabe",
+          esc(number(item) + " · " + item.requester + " · " + item.title) + '</button></li>').join("") + '</ul>' : '') : '')),
+    diagnosis: group("Diagnose und Schichtübergabe",
       '<div class="wide kanban-actions"><button type="button" id="diagnosis-draft">' + uiText("Diagnoseentwurf anzeigen") +
       '</button><button type="button" id="shift-brief">' + uiText("Schichtübergabe anzeigen") + '</button></div>' +
-      '<section id="agent-draft" class="wide intake-context" aria-live="polite" hidden></section>');
+      '<section id="agent-draft" class="wide intake-context" aria-live="polite" hidden></section>')};
 }
 
-function bindAgentTools(ticket) {
+function bindAgentTools(ticket, openTab) {
   const draft = $("agent-draft");
   const renderText = (label, text) => '<p class="rich-label">' + uiText(label) + '</p><p class="rich-text">' + esc(text) + '</p>';
   let pending;
@@ -818,6 +830,7 @@ function bindAgentTools(ticket) {
       const source = event.target.closest("[data-source]");
       if (source) {
         const row = $("history-entry-" + source.dataset.source);
+        if (row) openTab(row.closest("[role=tabpanel]").dataset.panel);
         row?.scrollIntoView({block:"nearest"});
         row?.setAttribute("tabindex","-1");
         row?.focus();
@@ -847,8 +860,34 @@ function bindAgentTools(ticket) {
 function openTicket(ticket) {
   if (!isAgent()) return openPortalTicket(ticket);
   const suggested = incidentPriority(ticket);
+  const tools = agentTools(ticket);
+  const publicEntries = ticket.history.filter(isPublicNote);
+  const internalEntries = ticket.history.filter(entry => isTicketNote(entry) && !isPublicNote(entry));
+  const tabs = [
+    ["overview", "Übersicht"], ["public", "Kundendialog", publicEntries.length],
+    ["internal", "Interne Notizen", internalEntries.length], ["delivery", "Umsetzung"],
+    ["operations", "Betrieb"], ["files", "Anhänge", ticket.attachments?.length ?? 0], ["history", "Verlauf"]
+  ];
+  const panel = (id, content) => '<section class="ticket-panel" role="tabpanel" id="ticket-panel-' + id +
+    '" data-panel="' + id + '" aria-labelledby="ticket-tab-' + id + '" tabindex="0"' +
+    (id === "overview" ? '' : ' hidden') + '>' + content + '</section>';
+  const timeline = entries => entries.length ? '<ul class="ticket-timeline">' + entries.slice().reverse().map(entry =>
+    '<li id="history-entry-' + ticket.history.indexOf(entry) + '"><small class="muted">' + esc(date(entry.at)) + '</small>' +
+    (entry.values?.author ? ' · ' + esc(entry.values.author) : '') + '<div>' + historyEntryText(entry) + '</div></li>').join("") +
+    '</ul>' : '<p class="muted">' + uiText("Noch keine Einträge.") + '</p>';
+  const composer = (id, kinds, hint) => '<section class="note-composer note-' + id + '"><p class="audience">' + uiText(hint) + '</p><div class="grid">' +
+    select("Art der Rückmeldung", id + "Kind", kinds, kinds[0]) +
+    select("Sprache deiner neuen Nachricht", id + "Language", Object.keys(languages), getLanguage(), code => languages[code]) +
+    editorMarkup(id + "Note", "Nachricht") + '</div></section>';
+  const tabList = '<div class="ticket-tabs" role="tablist" data-ui-aria-label="Ticketbereiche" aria-label="' + esc(t("Ticketbereiche")) + '">' +
+    tabs.map(([id,label,count], index) => '<button type="button" role="tab" id="ticket-tab-' + id +
+      '" aria-controls="ticket-panel-' + id + '" aria-selected="' + !index + '" tabindex="' + (index ? -1 : 0) +
+      '" data-tab="' + id + '">' + uiText(label) + (count === undefined ? '' : '<small>' + count + '</small>') + '</button>').join("") + '</div>';
+  const facts = '<dl class="workspace-facts">' + [
+    ["Status", ticket.status], ["Priorität", ticket.priority], ["Zuständige Person", ticket.owner || "Nicht zugewiesen"]
+  ].map(([label,value]) => '<div><dt>' + uiText(label) + '</dt><dd>' + uiText(value) + '</dd></div>').join("") + '</dl>';
   show(number(ticket) + " · IT", ticket.title,
-    '<p class="muted">' + esc(ticket.requester) + (ticket.department ? ' · ' + uiText(ticket.department) : '') + ' · ' + uiText(ticket.area || "IT") + " · " + uiText(ticket.service || "IT") + (ticket.urgency ? " · " + uiText("Gemeldete Dringlichkeit") + ": " + uiText(ticket.urgency) : "") + '</p><p id="ticket-description" class="rich-text">' +
+    '<form id="edit">' + facts + tabList + panel("overview", '<p class="muted">' + esc(ticket.requester) + (ticket.department ? ' · ' + uiText(ticket.department) : '') + ' · ' + uiText(ticket.area || "IT") + " · " + uiText(ticket.service || "IT") + (ticket.urgency ? " · " + uiText("Gemeldete Dringlichkeit") + ": " + uiText(ticket.urgency) : "") + '</p><p id="ticket-description" class="rich-text">' +
     '</p><p><strong>' + uiText("Gemeldete Kritikalität") + '</strong> · ' + uiText(ticket.reportedCriticality || "Noch nicht bewertet") + '</p>' + businessContextDisplay(ticket) + actionDisplay(ticket, false) + translationPanel(ticket) + '<section class="intake-context" aria-label="' + esc(t("Erstbewertung")) + '"><p class="rich-label">' + uiText("Nächster Schritt") + '</p><p>' +
     uiText(ticket.status === statuses[3] ? "Vorgang abgeschlossen." : intake[ticket.type]?.next ?? intake[types[0]].next) + '</p>' +
     (ticket.rationale ? '<p><strong>' + uiText("Projektbegründung") + '</strong> · ' + readingText(ticket.rationale,ticket.rationaleLanguage) + '</p>' : '') +
@@ -859,7 +898,7 @@ function openTicket(ticket) {
     (ticket.catalogItem ? '<p><strong>' + uiText("Servicekatalog") + '</strong> · ' + uiText(ticket.catalogItem) + '</p>' : '') +
     Object.entries(ticket.intakeAnswers ?? {}).map(([name,value]) =>
       '<p><strong>' + uiText(intakeLabels[name] ?? name) + '</strong> · ' + esc(name === "needed" && /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Intl.DateTimeFormat(getLanguage(), {dateStyle:"medium", timeZone:"UTC"}).format(new Date(value)) : t(value)) + '</p>'
-    ).join("") + '</section><form id="edit"><div class="grid">' +
+    ).join("") + '</section><div class="grid">' +
     select("Anliegenstyp", "type", types, ticket.type) +
     (ticket.type === "Problem" ? '<label class="wide">' + uiText("Ursachenanalyse") +
       '<textarea name="rootCause" rows="3" maxlength="3000">' + esc(ticket.rootCause) + '</textarea></label>' : '') + select("Bearbeitungsstatus", "status", statuses, ticket.status) +
@@ -872,6 +911,10 @@ function openTicket(ticket) {
     (suggested ? '<div class="wide intake-context"><p>' +
       uiText("Prioritätsvorschlag aus Auswirkung und Dringlichkeit: {priority}", {priority:suggested}, ["priority"]) +
       '</p><button type="button" id="apply-priority">' + uiText("Vorschlag übernehmen") + '</button></div>' : '') +
+    '</div>') +
+    panel("public", composer("public", publicNoteKinds, "Im Anliegenportal sichtbar") + timeline(publicEntries)) +
+    panel("internal", composer("internal", ["Interne Notiz", "Bereits versucht", "Zusage"], "Nur in der IT-Ansicht sichtbar") + timeline(internalEntries)) +
+    panel("delivery", '<div class="grid">' +
     select("Projektentscheidung", "decision", decisions, ticket.decision) + field("Projektreferenz", "reference", ticket.reference, "maxlength=100") +
     field("Link zur Kanban-Karte", "kanbanUrl", ticket.kanbanUrl, "type=url maxlength=300") +
     '<div class="wide kanban-actions">' +
@@ -879,10 +922,6 @@ function openTicket(ticket) {
     '<button type="button" id="copy-handoff">' + uiText("Übergabe kopieren") + '</button><span id="handoff-status" role="status"></span></div>' +
     '<label class="wide">' + uiText("Begründung der Projektentscheidung") + '<textarea name="rationale" rows="2" maxlength="1200">' +
     esc(ticket.rationale) + '</textarea></label>' +
-    '<fieldset class="wide feature-group"><legend>' + uiText("Kommunikation") + '</legend><div class="grid">' +
-    select("Art der Rückmeldung", "noteKind", ["Rückfrage", "Antwort", "Interne Notiz", "Bereits versucht", "Zusage"], "Interne Notiz") +
-    select("Sprache deiner neuen Nachricht", "noteLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
-    '<label class="wide">' + uiText("Nachricht") + '<textarea name="note" rows="2" maxlength="1200"></textarea></label></div></fieldset>' +
     '<fieldset class="wide feature-group"><legend>' + uiText("Freigabe") + '</legend><div class="grid">' +
     '<p class="wide">' + uiText(ticket.approval?.status || "Keine Freigabe erfasst") +
     (ticket.approval?.person ? ' · ' + esc(ticket.approval.person) : '') + '</p>' +
@@ -894,9 +933,37 @@ function openTicket(ticket) {
     select("Beziehungstyp", "relationKind", relationKinds, relationKinds[0]) +
     select("Verknüpftes Ticket", "relationTarget", ["", ...tickets.filter(other => other.number !== ticket.number).map(other => String(other.number))],
       "", value => { const other = tickets.find(item => String(item.number) === value); return other ? number(other) + " · " + other.title : t("Ticket auswählen"); }) +
-    '</div></fieldset>' + agentTools(ticket) + attachmentsForm() + '</div>' +
-    formEnd() + '<section class="history"><h3>' + uiText("Verlauf") + '</h3><ul>' + ticket.history.slice().reverse().map(entry =>
-      '<li id="history-entry-' + ticket.history.indexOf(entry) + '"><small class="muted">' + date(entry.at) + '</small> · ' + (entry.values?.author ? esc(entry.values.author) + " · " : "") + historyEntryText(entry) + '</li>').join("") + '</ul></section>');
+    '</div></fieldset>' + tools.delivery + '</div>') +
+    panel("operations", tools.operations + tools.outage + tools.diagnosis) +
+    panel("files", attachmentsForm()) +
+    panel("history", timeline(ticket.history.filter(entry => !isTicketNote(entry)))) +
+    '<p class="workspace-save-hint">' + uiText("Speichern übernimmt Änderungen aus allen Reitern.") + '</p>' +
+    formEnd(), true);
+  const tabButtons = [...$("edit").querySelectorAll("[data-tab]")];
+  const openTab = id => {
+    for (const button of tabButtons) {
+      const selected = button.dataset.tab === id;
+      button.setAttribute("aria-selected", String(selected));
+      button.tabIndex = selected ? 0 : -1;
+      $(button.getAttribute("aria-controls")).hidden = !selected;
+    }
+  };
+  tabButtons.forEach((button, index) => {
+    button.onclick = () => openTab(button.dataset.tab);
+    button.onkeydown = event => {
+      const targets = {ArrowLeft:index - 1, ArrowRight:index + 1, Home:0, End:tabButtons.length - 1};
+      if (!Object.hasOwn(targets, event.key)) return;
+      event.preventDefault();
+      const next = tabButtons[(targets[event.key] + tabButtons.length) % tabButtons.length];
+      openTab(next.dataset.tab);
+      next.focus();
+    };
+  });
+  $("edit").addEventListener("invalid", event => {
+    const tab = event.target.closest("[data-panel]");
+    if (tab) openTab(tab.dataset.panel);
+  }, true);
+  const noteEditors = {public:bindEditor("publicNote"), internal:bindEditor("internalNote")};
   appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
   bindTranslation(ticket, switchLanguage);
   if (suggested) $("apply-priority").onclick = () => { $("edit").elements.namedItem("priority").value = suggested; };
@@ -911,7 +978,7 @@ function openTicket(ticket) {
     }
   };
   bindSapFields($("edit"));
-  bindAgentTools(ticket);
+  bindAgentTools(ticket, openTab);
   const attachments = bindAttachments(ticket.attachments);
   const removedLinks = new Set();
   $("ticket-relations").onclick = event => {
@@ -933,7 +1000,18 @@ function openTicket(ticket) {
   };
   $("edit").onsubmit = async (e) => {
     e.preventDefault();
-    const {note, noteKind, noteLanguage, approvalAction, approver, approvalReason, relationKind, relationTarget, actionRequest, outageMode, outageTitle, outageUpdate, deliveryMode, deliveryGoal, deliveryCriteria, deliveryProject, deliveryColumn, priorityReason, articleMode, articleTitle, articleBody, escalationNote, ...fields} = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, value.trim()]));
+    const {publicNote, publicKind, publicLanguage, internalNote, internalKind, internalLanguage, approvalAction, approver, approvalReason, relationKind, relationTarget, actionRequest, outageMode, outageTitle, outageUpdate, deliveryMode, deliveryGoal, deliveryCriteria, deliveryProject, deliveryColumn, priorityReason, articleMode, articleTitle, articleBody, escalationNote, ...fields} = Object.fromEntries([...new FormData(e.target)].map(([name, value]) => [name, ["publicNote", "internalNote"].includes(name) ? value : value.trim()]));
+    const drafts = [
+      {tab:"public", note:publicNote, kind:publicKind, language:publicLanguage},
+      {tab:"internal", note:internalNote, kind:internalKind, language:internalLanguage}
+    ].filter(({note}) => note.trim());
+    for (const draft of drafts) {
+      if (draft.note.length > 1200) {
+        openTab(draft.tab);
+        $("error").textContent = t("Bitte gib eine Nachricht mit 1 bis 1.200 Zeichen ein.");
+        return;
+      }
+    }
     if (fields.kanbanUrl && !kanbanLink(fields.kanbanUrl)) {
       $("error").textContent = t("Bitte einen Kartenlink vom lokalen Kanban-Board einfügen.");
       return;
@@ -960,7 +1038,11 @@ function openTicket(ticket) {
         ["type","status","priority","decision","sapProcess","sapStep"].includes(name) ? ["field","before","after"] : ["field"]));
     if (fields.priority !== ticket.priority && priorityReason) history.push(systemEvent("Prioritätsbegründung: {note}", {note:priorityReason, language:getLanguage()}));
     if (articleMode) history.push(systemEvent(articleMode === "publish" ? "Hilfeartikel veröffentlicht" : "Hilfeartikel zurückgezogen"));
-    if (note) history.push(systemEvent("{kind}: {note}", {kind:noteKind,note,author:$("actor").value,language:noteLanguage}, ["kind"]));
+    for (const {tab,note,kind,language} of drafts) {
+      const allowed = tab === "public" ? publicNoteKinds : ["Interne Notiz","Bereits versucht","Zusage"];
+      if (!allowed.includes(kind)) return;
+      history.push(systemEvent("{kind}: {note}", {kind,note,language,format:noteEditors[tab].getFormat(),author:$("actor").value}, ["kind"]));
+    }
     let approval = ticket.approval;
     if (approvalAction) {
       if (!approver || !approvalReason || (approvalAction !== approvalDecisions[0] && approval?.status !== "Freigabe ausstehend")) {
@@ -1037,10 +1119,10 @@ function openTicket(ticket) {
     }
     const article = articleMode === "publish" ? {title:articleTitle,body:articleBody,service:ticket.service,language:getLanguage()} :
       articleMode === "remove" ? null : ticket.article;
-    const respondedAt = ticket.respondedAt || (note && ["Rückfrage","Antwort"].includes(noteKind) || actionRequest || deliveryMode === "accept" ? at : null);
+    const respondedAt = ticket.respondedAt || (publicNote.trim() || actionRequest || deliveryMode === "accept" ? at : null);
     const resolvedAt = fields.status === statuses[3] ? ticket.resolvedAt || at : null;
     const updated = {...ticket, ...fields, article, escalation, respondedAt, resolvedAt, rationaleLanguage: fields.rationale === ticket.rationale ? ticket.rationaleLanguage : getLanguage(), attachments: files, approval, relations, nextAction:action, outage, delivery, history: [...ticket.history, ...history]};
-    await submit(e.target, tickets.map(t => t.number === ticket.number ? updated : t), t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}));
+    if (await submit(e.target, tickets.map(t => t.number === ticket.number ? updated : t), t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}))) attachments.commit();
   };
 }
 

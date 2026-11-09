@@ -425,6 +425,25 @@ Nicht zugewiesen|Unassigned|Non assegnato|Sin asignar
 Erneut versuchen|Try again|Riprova|Reintentar
 Bitte wähle die Originalsprache für die Übersetzung.|Select the original language to translate this ticket.|Seleziona la lingua originale per tradurre il ticket.|Selecciona el idioma original para traducir este ticket.
 Alle Ticketinhalte sind bereits auf {language} verfügbar.|All ticket content is already available in {language}.|Tutti i contenuti del ticket sono già disponibili in {language}.|Todo el contenido del ticket ya está disponible en {language}.
+Übersicht|Overview|Panoramica|Resumen
+Kundendialog|Customer conversation|Conversazione con il cliente|Conversación con el cliente
+Interne Notizen|Internal notes|Note interne|Notas internas
+Umsetzung|Delivery|Implementazione|Implementación
+Betrieb|Operations|Operazioni|Operaciones
+Ticketbereiche|Ticket sections|Sezioni del ticket|Secciones del ticket
+Noch keine Einträge.|No entries yet.|Nessuna voce.|Aún no hay entradas.
+Im Anliegenportal sichtbar|Visible in the request portal|Visibile nel portale delle richieste|Visible en el portal de solicitudes
+Nur in der IT-Ansicht sichtbar|Visible in the IT workspace only|Visibile solo nell’area IT|Visible solo en el área de TI
+Speichern übernimmt Änderungen aus allen Reitern.|Save applies changes from all tabs.|Il salvataggio applica le modifiche di tutte le schede.|Guardar aplica los cambios de todas las pestañas.
+Bitte gib eine Nachricht mit 1 bis 1.200 Zeichen ein.|Enter a message between 1 and 1,200 characters.|Inserisci un messaggio tra 1 e 1.200 caratteri.|Introduce un mensaje de entre 1 y 1200 caracteres.
+Änderungen übernehmen|Import changes|Importa modifiche|Importar cambios
+Für diese Datei gibt es bereits eine Arbeitskopie.|A working copy already exists for this file.|Esiste già una copia di lavoro per questo file.|Ya existe una copia de trabajo de este archivo.
+Datei in Office speichern und schließen. Danach Änderungen übernehmen.|Save and close the file in Office. Then import changes.|Salva e chiudi il file in Office. Poi importa le modifiche.|Guarda y cierra el archivo en Office. Después importa los cambios.
+Datei konnte nicht im Standardprogramm geöffnet werden. Die Kopie kann heruntergeladen werden.|The file could not be opened in the default app. You can download a copy.|Impossibile aprire il file nell'app predefinita. Puoi scaricare una copia.|No se pudo abrir el archivo en la aplicación predeterminada. Puedes descargar una copia.
+Die Arbeitskopie enthält noch keine gespeicherten Änderungen.|The working copy has no saved changes yet.|La copia di lavoro non contiene ancora modifiche salvate.|La copia de trabajo aún no contiene cambios guardados.
+Die neue Fassung ist bereits zum Speichern vorgemerkt.|The new version is already queued to be saved.|La nuova versione è già in attesa di salvataggio.|La nueva versión ya está pendiente de guardado.
+Neue Fassung hinzugefügt. Speichere das Ticket, um sie zu behalten.|New version added. Save the ticket to keep it.|Nuova versione aggiunta. Salva il ticket per conservarla.|Nueva versión añadida. Guarda el ticket para conservarla.
+Arbeitskopie konnte nicht gelesen werden. Speichere und schließe die Datei in Office und versuche es erneut.|The working copy could not be read. Save and close the file in Office and try again.|Impossibile leggere la copia di lavoro. Salva e chiudi il file in Office e riprova.|No se pudo leer la copia de trabajo. Guarda y cierra el archivo en Office y vuelve a intentarlo.
 `;
 const dictionary = new Map(rows.trim().split("\n").map(row => {
   const [key, en, it, es] = row.split("|");

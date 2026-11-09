@@ -1,3 +1,4 @@
+import { handleOffice } from "./office.mjs";
 import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
@@ -15,6 +16,7 @@ const server = createServer(async (request, response) => {
     response.end(JSON.stringify({provider:process.env.LLSG_DEEPL_API_KEY?.trim() ? "deepl" : "browser"}));
     return;
   }
+  if (path.startsWith("api/office/")) return handleOffice(request,response,origin,path);
   if (path === "api/translate/deepl") return handleDeepL(request,response,origin);
   if (!["GET", "HEAD"].includes(request.method) || !files.has(path)) {
     response.writeHead(404).end();

@@ -1,3 +1,4 @@
+import { richTextHtml } from "./rich-text.mjs";
 import { getLanguage, languages, t, uiText } from "./i18n.mjs";
 
 const escape = value => String(value ?? "").replace(/[&<>"']/g, c =>
@@ -64,8 +65,8 @@ export async function translateTicketTitles(tickets, target, onTitle) {
   await Promise.all(updates);
 }
 
-export function readingText(value, source = "") {
-  return '<span data-reading-text data-reading-language="' + escape(hasLanguage(source) ? source : "") + '">' + escape(value) + '</span>';
+export function readingText(value, source = "", format) {
+  return '<span data-reading-text data-reading-language="' + escape(hasLanguage(source) ? source : "") + '">' + richTextHtml(String(value ?? ""), format) + '</span>';
 }
 
 function languageOptions(current, placeholder = "") {

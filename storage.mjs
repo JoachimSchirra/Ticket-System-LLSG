@@ -56,8 +56,13 @@ export function attachmentsForm() {
     '<p id="attachment-status" role="status"></p><ul id="attachments" class="attachments"></ul></section>';
 }
 
+const officeSessions = new WeakMap();
+
 export function bindAttachments(initial = [], {keepExisting = false} = {}) {
   let files = [...initial];
+  const sessions = officeSessions;
+  const imported = new Map();
+  const report = key => { id("attachment-status").textContent = t(key); };
   const picker = id("attachment-picker"), zone = id("dropzone"), list = id("attachments");
   function render() {
     list.replaceChildren();
@@ -75,7 +80,66 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
       remove.textContent = t("Entfernen");
       remove.setAttribute("aria-label", t("Entfernen") + " " + file.name);
       remove.onclick = () => { files = files.filter(item => item !== file); render(); };
-      item.append(file.name, download);
+      const extension = /\.(docx|xlsx|pptx)$/i.exec(file.name)?.[1].toLowerCase();
+      const link = document.createElement("a");
+      link.href = "#";
+      link.textContent = file.name;
+      link.onclick = async event => {
+        event.preventDefault();
+        if (!extension) { downloadAttachment(file); return; }
+        if (sessions.has(file)) { report("Für diese Datei gibt es bereits eine Arbeitskopie."); return; }
+        sessions.set(file, null);
+        try {
+          const response = await fetch("/api/office/open", {method:"POST",
+            headers:{"Content-Type":"application/octet-stream","X-Office-Extension":extension},body:file});
+          if (!response.ok) throw Error("open");
+          sessions.set(file, (await response.json()).id);
+          report("Datei in Office speichern und schließen. Danach Änderungen übernehmen.");
+        } catch {
+          sessions.delete(file);
+          report("Datei konnte nicht im Standardprogramm geöffnet werden. Die Kopie kann heruntergeladen werden.");
+        }
+        render();
+      };
+      item.append(link, download);
+      const session = sessions.get(file);
+      if (session) {
+        const apply = document.createElement("button");
+        apply.type = "button";
+        apply.dataset.uiKey = "Änderungen übernehmen";
+        apply.textContent = t("Änderungen übernehmen");
+        apply.onclick = async () => {
+          apply.disabled = true;
+          try {
+            const response = await fetch("/api/office/read/" + session, {method:"POST"});
+            if (response.status === 204) {
+              const closed = await fetch("/api/office/release/" + session, {method:"POST",
+                headers:{"X-Office-Hash":response.headers.get("X-Office-Hash")}});
+              if (closed.ok) { sessions.delete(file); render(); }
+              report("Die Arbeitskopie enthält noch keine gespeicherten Änderungen.");
+              return;
+            }
+            if (!response.ok) throw Error("read");
+            const stem = file.name.slice(0, -(extension.length + 1));
+            let version = 2;
+            while (files.some(item => item.name === stem + " (" + version + ")." + extension)) version++;
+            const name = stem + " (" + version + ")." + extension;
+            const previous = imported.get(file)?.file;
+            if (previous && files.includes(previous)) {
+              report("Die neue Fassung ist bereits zum Speichern vorgemerkt.");
+              return;
+            }
+            const revision = new File([await response.blob()], name, {type:file.type});
+            if (add([revision])) {
+              imported.set(file, {file:revision, session, hash:response.headers.get("X-Office-Hash")});
+              report("Neue Fassung hinzugefügt. Speichere das Ticket, um sie zu behalten.");
+            }
+          } catch {
+            report("Arbeitskopie konnte nicht gelesen werden. Speichere und schließe die Datei in Office und versuche es erneut.");
+          } finally { apply.disabled = false; }
+        };
+        item.append(apply);
+      }
       if (!keepExisting || !initial.includes(file)) item.append(remove);
       list.append(item);
     }
@@ -110,7 +174,17 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
     add(event.dataTransfer.files);
   };
   render();
-  return Object.assign(() => [...files], {addFile: file => add([file])});
+  return Object.assign(() => [...files], {
+    addFile: file => add([file]),
+    commit() {
+      for (const [original, {file, session, hash}] of imported) {
+        if (files.includes(file) && hash) {
+          void fetch("/api/office/release/" + session, {method:"POST",headers:{"X-Office-Hash":hash}})
+            .then(response => { if (response.ok) sessions.delete(original); }).catch(() => {});
+        }
+      }
+    }
+  });
 }
 
 export function downloadAttachment(file) {
