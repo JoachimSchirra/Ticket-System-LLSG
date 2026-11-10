@@ -57,6 +57,7 @@ export function attachmentsForm() {
 }
 
 const officeSessions = new WeakMap();
+const openingOffice = new WeakSet();
 
 export function bindAttachments(initial = [], {keepExisting = false} = {}) {
   let files = [...initial];
@@ -94,17 +95,23 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
       link.onclick = async event => {
         event.preventDefault();
         if (!extension) { downloadAttachment(file); return; }
-        if (sessions.has(file)) { report("Für diese Datei gibt es bereits eine Arbeitskopie."); return; }
-        sessions.set(file, null);
+        if (openingOffice.has(file)) return;
+        openingOffice.add(file);
+        const existing = sessions.get(file);
         try {
-          const response = await fetch("/api/office/open", {method:"POST",
+          const response = existing
+            ? await fetch("/api/office/reopen/" + existing, {method:"POST"})
+            : await fetch("/api/office/open", {method:"POST",
             headers:{"Content-Type":"application/octet-stream","X-Office-Extension":extension},body:file});
           if (!response.ok) throw Error("open");
-          sessions.set(file, (await response.json()).id);
+          if (!existing) sessions.set(file, (await response.json()).id);
           report("Datei in Office speichern und schließen. Danach Änderungen übernehmen.");
         } catch {
-          sessions.delete(file);
-          report("Datei konnte nicht im Standardprogramm geöffnet werden. Die Kopie kann heruntergeladen werden.");
+          report(existing
+            ? "Die Arbeitskopie konnte nicht erneut geöffnet werden. Versuche, die gespeicherten Änderungen zu übernehmen."
+            : "Datei konnte nicht im Standardprogramm geöffnet werden. Die Kopie kann heruntergeladen werden.");
+        } finally {
+          openingOffice.delete(file);
         }
         render();
       };

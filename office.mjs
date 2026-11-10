@@ -8,6 +8,18 @@ const limit = 10 * 1024 * 1024;
 const sessions = new Map();
 const digest = data => createHash("sha256").update(data).digest("hex");
 
+function openInOffice(filename) {
+  const env = {...process.env, LLSG_OFFICE_FILE:filename};
+  delete env.LLSG_DEEPL_API_KEY;
+  return new Promise((resolve, reject) => {
+    const child = spawn("powershell.exe", ["-NoProfile","-NonInteractive","-Command",
+      "Start-Process -FilePath $env:LLSG_OFFICE_FILE -ErrorAction Stop"],
+      {env, windowsHide:true, stdio:"ignore", timeout:15000});
+    child.once("error", reject);
+    child.once("exit", code => code === 0 ? resolve() : reject(Error("open")));
+  });
+}
+
 async function readCopy(filename) {
   const file = await open(filename, "r");
   let bytes;
@@ -57,15 +69,7 @@ export async function handleOffice(request, response, origin, path) {
       folder = await mkdtemp(join(tmpdir(), "llsg-ticket-"));
       filename = join(folder, "Dokument." + extension);
       await writeFile(filename, data, {flag:"wx"});
-      const env = {...process.env, LLSG_OFFICE_FILE:filename};
-      delete env.LLSG_DEEPL_API_KEY;
-      await new Promise((resolve, reject) => {
-        const child = spawn("powershell.exe", ["-NoProfile","-NonInteractive","-Command",
-          "Start-Process -FilePath $env:LLSG_OFFICE_FILE -ErrorAction Stop"],
-          {env, windowsHide:true, stdio:"ignore", timeout:15000});
-        child.once("error", reject);
-        child.once("exit", code => code === 0 ? resolve() : reject(Error("open")));
-      });
+      await openInOffice(filename);
       sessions.set(id, {folder, filename, hash:digest(data)});
       return send(200, {id});
     } catch {
@@ -76,9 +80,15 @@ export async function handleOffice(request, response, origin, path) {
       return;
     }
   }
-  const match = /^api\/office\/(read|release)\/([\da-f-]{36})$/.exec(path);
+  const match = /^api\/office\/(reopen|read|release)\/([\da-f-]{36})$/.exec(path);
   const session = match && sessions.get(match[2]);
   if (!session) return send(404, {});
+  if (match[1] === "reopen") {
+    try {
+      await openInOffice(session.filename);
+      return send(200, {});
+    } catch { return send(500, {}); }
+  }
   if (match[1] === "release") {
     try {
       const bytes = await readCopy(session.filename);
