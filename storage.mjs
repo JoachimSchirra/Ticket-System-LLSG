@@ -77,12 +77,12 @@ export function bindAttachments(initial = [], {keepExisting = false, overview} =
     if (overview) {
       renderList(overview.list, false);
       overview.section.hidden = !files.length;
-      overview.save.hidden = !files.some(file => !initial.includes(file));
     }
   }
   function renderList(target, editable) {
     target.replaceChildren();
     for (const file of files) {
+      const original = imported.get(file)?.original ?? file;
       const item = document.createElement("li");
       const download = document.createElement("button");
       download.type = "button";
@@ -108,71 +108,70 @@ export function bindAttachments(initial = [], {keepExisting = false, overview} =
       link.onclick = async event => {
         event.preventDefault();
         if (!extension) { downloadAttachment(file); return; }
-        if (openingOffice.has(file)) return;
-        openingOffice.add(file);
-        const existing = sessions.get(file);
+        if (openingOffice.has(original)) return;
+        openingOffice.add(original);
+        const existing = sessions.get(original);
         try {
           const response = existing
             ? await fetch("/api/office/reopen/" + existing, {method:"POST"})
             : await fetch("/api/office/open", {method:"POST",
             headers:{"Content-Type":"application/octet-stream","X-Office-Extension":extension},body:file});
           if (!response.ok) throw Error("open");
-          if (!existing) sessions.set(file, (await response.json()).id);
+          if (!existing) sessions.set(original, (await response.json()).id);
           report("Datei in Office speichern und schließen. Danach Änderungen übernehmen.");
         } catch {
           report(existing
             ? "Die Arbeitskopie konnte nicht erneut geöffnet werden. Versuche, die gespeicherten Änderungen zu übernehmen."
             : "Datei konnte nicht im Standardprogramm geöffnet werden. Die Kopie kann heruntergeladen werden.");
         } finally {
-          openingOffice.delete(file);
+          openingOffice.delete(original);
         }
         render();
       };
       item.append(link, download);
-      const session = sessions.get(file);
+      const session = sessions.get(original);
       if (session) {
         const apply = document.createElement("button");
         apply.type = "button";
         apply.dataset.uiKey = "Änderungen übernehmen";
         apply.textContent = t("Änderungen übernehmen");
         apply.onclick = async () => {
-          if (importing.has(file)) return;
-          importing.add(file);
+          if (importing.has(original)) return;
+          importing.add(original);
           apply.disabled = true;
           try {
             const response = await fetch("/api/office/read/" + session, {method:"POST"});
             if (response.status === 204) {
               const closed = await fetch("/api/office/release/" + session, {method:"POST",
                 headers:{"X-Office-Hash":response.headers.get("X-Office-Hash")}});
-              if (closed.ok) { sessions.delete(file); render(); }
+              if (closed.ok) { sessions.delete(original); render(); }
               report("Die Arbeitskopie enthält noch keine gespeicherten Änderungen.");
               return;
             }
             if (!response.ok) throw Error("read");
-            const stem = file.name.slice(0, -(extension.length + 1));
-            let version = 2;
-            while (files.some(item => item.name === stem + " (" + version + ")." + extension)) version++;
-            const name = stem + " (" + version + ")." + extension;
-            const previous = imported.get(file)?.file;
-            if (previous && files.includes(previous)) {
-              report("Die neue Fassung ist bereits zum Speichern vorgemerkt.");
+            const replacement = new File([await response.blob()], file.name, {type:file.type});
+            const index = files.indexOf(file);
+            if (index < 0) return;
+            const total = files.reduce((sum, item) => sum + item.size, 0) - file.size + replacement.size;
+            if (replacement.size > maxFileSize || total > maxTicketSize) {
+              report("{file} überschreitet das Größenlimit.", {file:file.name});
               return;
             }
-            const revision = new File([await response.blob()], name, {type:file.type});
-            if (add([revision])) {
-              imported.set(file, {file:revision, session, hash:response.headers.get("X-Office-Hash")});
-              report("Neue Fassung hinzugefügt. Speichere das Ticket, um sie zu behalten.");
-            }
+            imported.delete(file);
+            imported.set(replacement, {original, session, hash:response.headers.get("X-Office-Hash")});
+            files[index] = replacement;
+            report("Anhang aktualisiert. Klicke auf Speichern.");
+            render();
           } catch {
             report("Arbeitskopie konnte nicht gelesen werden. Speichere und schließe die Datei in Office und versuche es erneut.");
           } finally {
-            importing.delete(file);
+            importing.delete(original);
             apply.disabled = false;
           }
         };
         item.append(apply);
       }
-      if (editable && (!keepExisting || !initial.includes(file))) item.append(remove);
+      if (editable && (!keepExisting || !initial.includes(original))) item.append(remove);
       target.append(item);
     }
   }
@@ -227,8 +226,9 @@ export function bindAttachments(initial = [], {keepExisting = false, overview} =
   render();
   return Object.assign(() => [...files], {
     addFile: file => add([file]),
+    replaces: file => imported.get(file)?.original,
     commit() {
-      for (const [original, {file, session, hash}] of imported) {
+      for (const [file, {original, session, hash}] of imported) {
         if (files.includes(file) && hash) {
           void fetch("/api/office/release/" + session, {method:"POST",headers:{"X-Office-Hash":hash}})
             .then(response => { if (response.ok) sessions.delete(original); }).catch(() => {});

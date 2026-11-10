@@ -585,7 +585,7 @@ function portalEditMarkup(ticket) {
     uiText("Änderungen speichern") + '</button></footer></form></details>';
 }
 
-function bindPortalEditor(ticket) {
+function bindPortalEditor(ticket, replyEditor) {
   const panel = $("portal-editor");
   const form = $("portal-edit");
   const error = form.querySelector("[data-edit-error]");
@@ -609,13 +609,22 @@ function bindPortalEditor(ticket) {
   const editor = bindDescriptionEditor(ticket);
   const attachments = bindAttachments(ticket.attachments, {keepExisting:true, overview:{
     section:$("portal-attachment-section"), list:$("portal-attachments"),
-    status:$("portal-attachment-status"), save:$("portal-attachment-save")
+    status:$("portal-attachment-status")
   }});
   bindEvidence($("dialog"), attachments.addFile, () => panel.open);
   form.onsubmit = async event => {
     event.preventDefault();
+    const replyForm = $("edit");
+    const note = replyForm.elements.namedItem("note").value;
+    $("error").textContent = "";
+    error.textContent = "";
+    if (note.length > 1200) {
+      $("error").textContent = t("Bitte gib eine Nachricht mit 1 bis 1.200 Zeichen ein.");
+      return;
+    }
     const fields = Object.fromEntries([...new FormData(form)].map(([name, value]) => [name, name === "description" ? value : value.trim()]));
     if (!fields.title || !fields.description.trim() || fields.description.length > 3000) {
+      panel.open = true;
       error.textContent = t("Bitte Betreff und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.");
       return;
     }
@@ -631,7 +640,7 @@ function bindPortalEditor(ticket) {
       (ticket[name] ?? (name === "area" ? "IT" : name === "service" ? "Noch nicht bekannt" : ""))); 
     if (JSON.stringify(descriptionFormat) !== JSON.stringify(ticket.descriptionFormat ?? []) && !changed.includes("description")) changed.push("description");
     const added = files.filter(file => !(ticket.attachments ?? []).includes(file));
-    if (!changed.length && !added.length) {
+    if (!changed.length && !added.length && !note.trim()) {
       panel.open = false;
       return;
     }
@@ -642,7 +651,14 @@ function bindPortalEditor(ticket) {
     if (changed.length) history.push(systemEvent("Anliegen aktualisiert: {fields}", {
       fields:changed.map(name => t(labels[name])).join(", "), author:ticket.requester
     }));
-    for (const file of added) history.push(systemEvent("Anhang hinzugefügt: {file}", {file:file.name, author:ticket.requester}));
+    for (const file of added) {
+      const key = attachments.replaces(file) ? "Anhang aktualisiert: {file}" : "Anhang hinzugefügt: {file}";
+      history.push(systemEvent(key, {file:file.name, author:ticket.requester}));
+    }
+    if (note.trim()) history.push(systemEvent("{kind}: {note}", {
+      kind:"Antwort", note, format:replyEditor.getFormat(), author:ticket.requester,
+      language:replyForm.elements.namedItem("noteLanguage").value
+    }, ["kind"]));
     const businessContextLanguages = {...ticket.businessContextLanguages};
     for (const name of Object.keys(businessContextLabels)) {
       if (changed.includes(name)) businessContextLanguages[name] = fields.sourceLanguage;
@@ -653,6 +669,7 @@ function bindPortalEditor(ticket) {
       requesterEditedAt:new Date().toISOString()};
     if (await submit(form, tickets.map(item => item.number === ticket.number ? updated : item),
       t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}))) attachments.commit();
+    else $("error").textContent = error.textContent;
   };
 }
 
@@ -665,9 +682,7 @@ function openPortalTicket(ticket) {
   const conversation = ticket.history.filter(entry =>
     isPublicNote(entry));
   const attachmentOverview = '<section id="portal-attachment-section" hidden><h3>' + uiText("Anhänge") +
-    '</h3><p id="portal-attachment-status" role="status"></p><ul class="attachments" id="portal-attachments"></ul>' +
-    '<button type="submit" form="portal-edit" class="primary" id="portal-attachment-save" hidden>' +
-    uiText("Änderungen speichern") + '</button></section>';
+    '</h3><p id="portal-attachment-status" role="status"></p><ul class="attachments" id="portal-attachments"></ul></section>';
   show(number(ticket), ticket.title,
     '<p class="pill">' + uiText(ticket.status) + '</p>' + (ticket.system ? '<p>' + uiText("System oder Gerät") + esc(": " + ticket.system) + '</p>' : '') + '<p id="ticket-description" class="rich-text"></p>' +
     '<dl class="ticket-facts" id="editable-ticket-facts">' + [
@@ -684,11 +699,11 @@ function openPortalTicket(ticket) {
       uiText(entry.values.kind) + esc(" · " + (entry.values.author ? entry.values.author + ": " : "")) + readingText(entry.values.note,entry.values.language,entry.values.format) + '</li>').join("") +
     '</ul></section><form id="edit">' +
     select("Sprache deiner neuen Nachricht", "noteLanguage", Object.keys(languages), getLanguage(), code => languages[code]) +
-    editorMarkup("note", "Antwort") + formEnd("Antwort senden"));
+    editorMarkup("note", "Antwort") + formEnd("Speichern"));
   const replyEditor = bindEditor("note");
   appendRichText($("ticket-description"), ticket.description, ticket.descriptionFormat);
   bindTranslation(ticket, switchLanguage);
-  bindPortalEditor(ticket);
+  bindPortalEditor(ticket, replyEditor);
   const editButton = $("edit-ticket");
   editButton.dataset.uiKey = "Bearbeiten und Anhänge";
   editButton.textContent = t("Bearbeiten und Anhänge");
@@ -723,17 +738,9 @@ function openPortalTicket(ticket) {
     works.onclick = () => respond("works");
     fails.onclick = () => respond("fails");
   }
-  $("edit").onsubmit = async event => {
+  $("edit").onsubmit = event => {
     event.preventDefault();
-    const note = event.target.elements.namedItem("note").value;
-    if (!note.trim() || note.length > 1200) {
-      $("error").textContent = t("Bitte gib eine Nachricht mit 1 bis 1.200 Zeichen ein.");
-      return;
-    }
-    const entry = systemEvent("{kind}: {note}", {kind:"Antwort",note,format:replyEditor.getFormat(),author:$("actor").value,language:event.target.elements.namedItem("noteLanguage").value}, ["kind"]);
-    const updated = {...ticket, history:[...ticket.history,entry]};
-    await submit(event.target, tickets.map(item => item.number === ticket.number ? updated : item),
-      t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}));
+    $("portal-edit").requestSubmit();
   };
 }
 
@@ -1112,8 +1119,15 @@ function openTicket(ticket) {
     }
     const files = attachments();
     const previousFiles = ticket.attachments ?? [];
-    for (const file of files.filter(file => !previousFiles.includes(file))) history.push(systemEvent("Anhang hinzugefügt: {file}", {file:file.name}));
-    for (const file of previousFiles.filter(file => !files.includes(file))) history.push(systemEvent("Anhang entfernt: {file}", {file:file.name}));
+    const replaced = new Set();
+    for (const file of files.filter(file => !previousFiles.includes(file))) {
+      const original = attachments.replaces(file);
+      if (original) replaced.add(original);
+      history.push(systemEvent(original ? "Anhang aktualisiert: {file}" : "Anhang hinzugefügt: {file}", {file:file.name}));
+    }
+    for (const file of previousFiles.filter(file => !files.includes(file) && !replaced.has(file))) {
+      history.push(systemEvent("Anhang entfernt: {file}", {file:file.name}));
+    }
     if (!history.length) {
       $("dialog").close();
       return;

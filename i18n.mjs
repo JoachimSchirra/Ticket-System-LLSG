@@ -200,6 +200,7 @@ Ticket angelegt|Ticket created|Ticket creato|Ticket creado
 Fiktiver Pilotfall angelegt|Fictional demo ticket created|Ticket dimostrativo creato|Ticket ficticio de demostración creado
 {field} geändert: {before} → {after}|{field} changed: {before} → {after}|{field}: {before} → {after}|Cambio en {field}: {before} → {after}
 Anhang hinzugefügt: {file}|Attachment added: {file}|Allegato aggiunto: {file}|Adjunto añadido: {file}
+Anhang aktualisiert: {file}|Attachment updated: {file}|Allegato aggiornato: {file}|Adjunto actualizado: {file}
 Anhang entfernt: {file}|Attachment removed: {file}|Allegato rimosso: {file}|Adjunto eliminado: {file}
 Sprache des Originals|Original language|Lingua dell’originale|Idioma original
 Originalsprache unbekannt|Original language unknown|Lingua originale sconosciuta|Idioma original desconocido
@@ -444,7 +445,7 @@ Datei in Office speichern und schließen. Danach Änderungen übernehmen.|Save a
 Datei konnte nicht im Standardprogramm geöffnet werden. Die Kopie kann heruntergeladen werden.|The file could not be opened in the default app. You can download a copy.|Impossibile aprire il file nell'app predefinita. Puoi scaricare una copia.|No se pudo abrir el archivo en la aplicación predeterminada. Puedes descargar una copia.
 Die Arbeitskopie enthält noch keine gespeicherten Änderungen.|The working copy has no saved changes yet.|La copia di lavoro non contiene ancora modifiche salvate.|La copia de trabajo aún no contiene cambios guardados.
 Die neue Fassung ist bereits zum Speichern vorgemerkt.|The new version is already queued to be saved.|La nuova versione è già in attesa di salvataggio.|La nueva versión ya está pendiente de guardado.
-Neue Fassung hinzugefügt. Speichere das Ticket, um sie zu behalten.|New version added. Save the ticket to keep it.|Nuova versione aggiunta. Salva il ticket per conservarla.|Nueva versión añadida. Guarda el ticket para conservarla.
+Anhang aktualisiert. Klicke auf Speichern.|Attachment updated. Click Save.|Allegato aggiornato. Fai clic su Salva.|Adjunto actualizado. Haz clic en Guardar.
 Arbeitskopie konnte nicht gelesen werden. Speichere und schließe die Datei in Office und versuche es erneut.|The working copy could not be read. Save and close the file in Office and try again.|Impossibile leggere la copia di lavoro. Salva e chiudi il file in Office e riprova.|No se pudo leer la copia de trabajo. Guarda y cierra el archivo en Office y vuelve a intentarlo.
 `;
 const dictionary = new Map(rows.trim().split("\n").map(row => {
