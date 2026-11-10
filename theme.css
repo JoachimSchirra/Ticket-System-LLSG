@@ -149,16 +149,19 @@ label[hidden] { display:none; }
 
 
 .dialog-head { position:sticky; top:0; z-index:2; }
-.dialog-actions { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:8px; }
+.dialog-actions { display:flex; flex:none; align-items:flex-end; justify-content:flex-end; gap:8px; }
 .dialog-actions button[hidden] { display:none; }
+.dialog-actions button, #dialog-reading-language select { min-height:44px; }
+.dialog-actions #close { width:44px; padding-inline:0; }
 .portal-editor { scroll-margin-top: 110px; }
 
 #dialog-reading-language:empty { display: none; }
 #dialog-reading-language label { font-size: .83rem; }
-.dialog-head > div:first-child { min-width: 0; overflow-wrap: anywhere; }
+.dialog-head > div:first-child { flex:1; min-width:0; overflow-wrap:anywhere; }
 @media (max-width: 620px) {
   .dialog-head { flex-wrap: wrap; }
-  .dialog-actions { justify-content: flex-start; }
+  .dialog-head > div:first-child { flex-basis:100%; }
+  .dialog-actions { flex-wrap:wrap; max-width:100%; justify-content:flex-start; }
 }
 .ticket-workspace[open] { display:flex; flex-direction:column; width:min(1060px, calc(100% - 24px)); height:min(850px, calc(100dvh - 28px)); max-height:calc(100dvh - 28px); overflow:hidden; }
 .ticket-workspace .dialog-head { flex:none; }
