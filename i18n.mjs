@@ -405,8 +405,7 @@ Nenne Werk, Bestellposition und Fehlermeldung beim Wareneingang.|Provide the pla
 Nenne Werk, Prüflos und den Schritt, an dem die Qualitätsprüfung stockt.|Provide the plant, inspection lot and step where inspection stops.|Indica divisione, lotto di controllo e fase in cui il controllo si blocca.|Indica el centro, el lote y el paso donde se bloquea la inspección.
 Beschreibe den heutigen Freigabeweg, die gewünschte Regel und ein Abnahmebeispiel.|Describe the current approval flow, desired rule and an acceptance example.|Descrivi il flusso attuale, la regola desiderata e un esempio di accettazione.|Describe el flujo actual, la regla deseada y un ejemplo de aceptación.
 Nenne Schnittstelle oder Job, Zeitpunkt und die Auswirkung auf den Geschäftsprozess.|Provide the interface or job, time and business impact.|Indica interfaccia o job, orario e impatto sul processo.|Indica la interfaz o tarea, la hora y el impacto en el proceso.
-Ticket bearbeiten oder ergänzen|Edit or add to this ticket|Modifica o integra il ticket|Editar o ampliar el ticket
-Änderungen speichern|Save changes|Salva modifiche|Guardar cambios
+Ticketdaten und Anhänge|Ticket details and attachments|Dettagli e allegati del ticket|Detalles y adjuntos del ticket
 Zusatzinformationen und Auswirkungen|Additional information and impact|Informazioni aggiuntive e impatto|Información adicional e impacto
 Geschäftliche Auswirkungen|Business impact|Impatto operativo|Impacto en el negocio
 Gewünschtes Ergebnis|Desired outcome|Risultato desiderato|Resultado deseado
@@ -415,7 +414,7 @@ Bitte Betreff und eine Beschreibung mit bis zu 3.000 Zeichen eingeben.|Enter a s
 Anliegen aktualisiert: {fields}|Request updated: {fields}|Richiesta aggiornata: {fields}|Solicitud actualizada: {fields}
 Gemeldete Kritikalität|Reported criticality|Criticità segnalata|Criticidad indicada
 Noch nicht bewertet|Not rated yet|Non ancora valutata|Aún sin evaluar
-Bearbeiten und Anhänge|Edit and attach files|Modifica e allega file|Editar y adjuntar archivos
+Ticket bearbeiten|Edit ticket|Modifica ticket|Editar ticket
 Mit DeepL übersetzen|Translate with DeepL|Traduci con DeepL|Traducir con DeepL
 DeepL ist auf diesem Rechner noch nicht eingerichtet.|DeepL has not been configured on this computer.|DeepL non è ancora configurato su questo computer.|DeepL aún no está configurado en este equipo.
 DeepL konnte den Text nicht übersetzen.|DeepL could not translate the text.|DeepL non ha potuto tradurre il testo.|DeepL no pudo traducir el texto.

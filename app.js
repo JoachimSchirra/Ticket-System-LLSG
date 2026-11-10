@@ -510,8 +510,7 @@ function openNew() {
   };
 }
 
-async function submit(form, next, message) {
-  const button = form.querySelector("button.primary");
+async function submit(form, next, message, button = form.querySelector("button.primary")) {
   if (button.disabled) return;
   button.disabled = true;
   try {
@@ -568,7 +567,7 @@ function outageUpdates(ticket) {
 }
 
 function portalEditMarkup(ticket) {
-  return '<details class="portal-editor" id="portal-editor"><summary>' + uiText("Ticket bearbeiten oder ergänzen") + '</summary>' +
+  return '<details class="portal-editor" id="portal-editor"><summary>' + uiText("Ticketdaten und Anhänge") + '</summary>' +
     '<form id="portal-edit"><div class="grid">' +
     field("Betreff", "title", ticket.title, "required maxlength=120") +
     select("Sprache des Originals", "sourceLanguage", ["", ...Object.keys(languages)], ticket.sourceLanguage ?? "",
@@ -581,8 +580,7 @@ function portalEditMarkup(ticket) {
     '<div id="portal-sap-fields" class="wide"' + (ticket.service === "ERP" ? "" : " hidden") + '>' +
     (ticket.service === "ERP" ? sapFields(ticket.sapProcess,ticket.sapStep,ticket.sapContext,ticket.sapApp,ticket.sapError) : "") + '</div>' +
     editorMarkup("description", "Beschreibung") + businessContextFields(ticket) + evidenceForm() + attachmentsForm() +
-    '</div><p data-edit-error class="error" role="alert"></p><footer><button type="submit" class="primary">' +
-    uiText("Änderungen speichern") + '</button></footer></form></details>';
+    '</div><p data-edit-error class="error" role="alert"></p></form></details>';
 }
 
 function bindPortalEditor(ticket, replyEditor) {
@@ -668,7 +666,7 @@ function bindPortalEditor(ticket, replyEditor) {
       sapComponent:fields.service === "ERP" ? ticket.sapComponent : "", descriptionFormat, attachments:files, businessContextLanguages, history,
       requesterEditedAt:new Date().toISOString()};
     if (await submit(form, tickets.map(item => item.number === ticket.number ? updated : item),
-      t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}))) attachments.commit();
+      t("{ticket} wurde aktualisiert.", {ticket:number(ticket)}), replyForm.querySelector("button.primary"))) attachments.commit();
     else $("error").textContent = error.textContent;
   };
 }
@@ -705,8 +703,8 @@ function openPortalTicket(ticket) {
   bindTranslation(ticket, switchLanguage);
   bindPortalEditor(ticket, replyEditor);
   const editButton = $("edit-ticket");
-  editButton.dataset.uiKey = "Bearbeiten und Anhänge";
-  editButton.textContent = t("Bearbeiten und Anhänge");
+  editButton.dataset.uiKey = "Ticket bearbeiten";
+  editButton.textContent = t("Ticket bearbeiten");
   editButton.hidden = false;
   const openEditor = name => {
     const panel = $("portal-editor");
