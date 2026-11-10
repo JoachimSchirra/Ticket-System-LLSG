@@ -59,16 +59,29 @@ export function attachmentsForm() {
 const officeSessions = new WeakMap();
 const openingOffice = new WeakSet();
 
-export function bindAttachments(initial = [], {keepExisting = false} = {}) {
+export function bindAttachments(initial = [], {keepExisting = false, overview} = {}) {
   let files = [...initial];
   const sessions = officeSessions;
   const imported = new Map();
+  const importing = new Set();
   const picker = id("attachment-picker"), zone = id("dropzone"), list = id("attachments");
   const section = zone.parentElement;
   const status = id("attachment-status");
-  const report = (key, values) => { status.textContent = t(key, values); };
+  function setStatus(message) {
+    status.textContent = message;
+    if (overview) overview.status.textContent = message;
+  }
+  const report = (key, values) => setStatus(t(key, values));
   function render() {
-    list.replaceChildren();
+    renderList(list, true);
+    if (overview) {
+      renderList(overview.list, false);
+      overview.section.hidden = !files.length;
+      overview.save.hidden = !files.some(file => !initial.includes(file));
+    }
+  }
+  function renderList(target, editable) {
+    target.replaceChildren();
     for (const file of files) {
       const item = document.createElement("li");
       const download = document.createElement("button");
@@ -85,7 +98,7 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
       remove.onclick = () => {
         files = files.filter(item => item !== file);
         picker.value = "";
-        status.textContent = "";
+        setStatus("");
         render();
       };
       const extension = /\.(docx|xlsx|pptx)$/i.exec(file.name)?.[1].toLowerCase();
@@ -123,6 +136,8 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
         apply.dataset.uiKey = "Änderungen übernehmen";
         apply.textContent = t("Änderungen übernehmen");
         apply.onclick = async () => {
+          if (importing.has(file)) return;
+          importing.add(file);
           apply.disabled = true;
           try {
             const response = await fetch("/api/office/read/" + session, {method:"POST"});
@@ -150,12 +165,15 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
             }
           } catch {
             report("Arbeitskopie konnte nicht gelesen werden. Speichere und schließe die Datei in Office und versuche es erneut.");
-          } finally { apply.disabled = false; }
+          } finally {
+            importing.delete(file);
+            apply.disabled = false;
+          }
         };
         item.append(apply);
       }
-      if (!keepExisting || !initial.includes(file)) item.append(remove);
-      list.append(item);
+      if (editable && (!keepExisting || !initial.includes(file))) item.append(remove);
+      target.append(item);
     }
   }
   function add(selection) {
@@ -174,7 +192,7 @@ export function bindAttachments(initial = [], {keepExisting = false} = {}) {
       files.push(file);
       total += file.size;
     }
-    status.textContent = issues.join(" ");
+    setStatus(issues.join(" "));
     render();
     return files.length > before;
   }

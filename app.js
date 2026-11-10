@@ -4,7 +4,7 @@ import { getLanguage, setLanguage, languages, localize, t, t as translate, uiTex
 import { translationPanel, bindTranslation, readingText, translatedTitle, translateTicketTitles } from "./translation.mjs";
 import { createRichEditor } from "./rich-editor.mjs";
 import { appendRichText } from "./rich-text.mjs";
-import { attachmentsForm, bindAttachments, downloadAttachment, readTickets, writeTickets } from "./storage.mjs";
+import { attachmentsForm, bindAttachments, readTickets, writeTickets } from "./storage.mjs";
 
 "use strict";
 
@@ -607,7 +607,10 @@ function bindPortalEditor(ticket) {
   service.onchange = showSapFields;
   bindSapFields(form);
   const editor = bindDescriptionEditor(ticket);
-  const attachments = bindAttachments(ticket.attachments, {keepExisting:true});
+  const attachments = bindAttachments(ticket.attachments, {keepExisting:true, overview:{
+    section:$("portal-attachment-section"), list:$("portal-attachments"),
+    status:$("portal-attachment-status"), save:$("portal-attachment-save")
+  }});
   bindEvidence($("dialog"), attachments.addFile, () => panel.open);
   form.onsubmit = async event => {
     event.preventDefault();
@@ -661,8 +664,10 @@ function openPortalTicket(ticket) {
   if (ticket.requester !== $("actor").value) return;
   const conversation = ticket.history.filter(entry =>
     isPublicNote(entry));
-  const attachments = (ticket.attachments ?? []).map((file, index) =>
-    '<li><button type="button" data-download="' + index + '">' + uiText("Herunterladen") + esc(" · " + file.name) + '</button></li>').join("");
+  const attachmentOverview = '<section id="portal-attachment-section" hidden><h3>' + uiText("Anhänge") +
+    '</h3><p id="portal-attachment-status" role="status"></p><ul class="attachments" id="portal-attachments"></ul>' +
+    '<button type="submit" form="portal-edit" class="primary" id="portal-attachment-save" hidden>' +
+    uiText("Änderungen speichern") + '</button></section>';
   show(number(ticket), ticket.title,
     '<p class="pill">' + uiText(ticket.status) + '</p>' + (ticket.system ? '<p>' + uiText("System oder Gerät") + esc(": " + ticket.system) + '</p>' : '') + '<p id="ticket-description" class="rich-text"></p>' +
     '<dl class="ticket-facts" id="editable-ticket-facts">' + [
@@ -673,7 +678,7 @@ function openPortalTicket(ticket) {
     ].map(([name, label, value]) => '<div><dt id="fact-label-' + name + '">' + uiText(label) + '</dt><dd>' +
       '<button type="button" class="fact-edit" data-edit-field="' + name + '" aria-labelledby="fact-label-' + name +
       ' fact-value-' + name + ' fact-action-' + name + '"><span id="fact-value-' + name + '">' + uiText(value) +
-      '</span><span class="fact-edit-action" id="fact-action-' + name + '">' + uiText("Ändern") + '</span></button></dd></div>').join("") + '</dl>' + businessContextDisplay(ticket) + portalEditMarkup(ticket) + actionDisplay(ticket, true) + outageUpdates(ticket) + translationPanel(ticket) + (attachments ? '<h3>' + uiText("Anhänge") + '</h3><ul id="portal-attachments">' + attachments + '</ul>' : '') +
+      '</span><span class="fact-edit-action" id="fact-action-' + name + '">' + uiText("Ändern") + '</span></button></dd></div>').join("") + '</dl>' + businessContextDisplay(ticket) + portalEditMarkup(ticket) + actionDisplay(ticket, true) + outageUpdates(ticket) + translationPanel(ticket) + attachmentOverview +
     '<section class="history"><h3>' + uiText("Kommunikation") + '</h3><ul>' +
     conversation.map(entry => '<li><small class="muted">' + esc(date(entry.at)) + '</small> · ' +
       uiText(entry.values.kind) + esc(" · " + (entry.values.author ? entry.values.author + ": " : "")) + readingText(entry.values.note,entry.values.language,entry.values.format) + '</li>').join("") +
@@ -718,10 +723,6 @@ function openPortalTicket(ticket) {
     works.onclick = () => respond("works");
     fails.onclick = () => respond("fails");
   }
-  if (attachments) $("portal-attachments").onclick = event => {
-    const button = event.target.closest("[data-download]");
-    if (button) downloadAttachment(ticket.attachments[Number(button.dataset.download)]);
-  };
   $("edit").onsubmit = async event => {
     event.preventDefault();
     const note = event.target.elements.namedItem("note").value;
